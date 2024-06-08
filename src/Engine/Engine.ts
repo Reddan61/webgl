@@ -1,7 +1,10 @@
 import { glMatrix, mat4 } from "gl-matrix"
 import box from "../../resources/box.png"
+import susanTexture from "../../resources/SusanTexture.png"
+import susan from "../../resources/Susan.json"
 
 import { Camera } from './Camera/Camera';
+import { loadImage } from './Utils/Utils';
 
 import { vertexShader } from "./shaders/vertex";
 import { fragmentShader } from "./shaders/fragment"
@@ -32,11 +35,11 @@ export class Engine {
 	await this.initBuffers();
 
 	this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
+    this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
     this.webgl.enable(this.webgl.DEPTH_TEST);
     this.webgl.enable(this.webgl.CULL_FACE);
     this.webgl.frontFace(this.webgl.CCW);
     this.webgl.cullFace(this.webgl.BACK);
-    this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
   }
 
   public update() {
@@ -61,10 +64,11 @@ export class Engine {
 	this.update();
 
 	this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
-
+	
+	this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
 
-	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.boxTexture);
+	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
 	this.webgl.activeTexture(this.webgl.TEXTURE0);
 
 	this.webgl.drawElements(this.webgl.TRIANGLES, this.indices.length, this.webgl.UNSIGNED_SHORT, 0);
@@ -86,74 +90,13 @@ export class Engine {
   private yRotation: Float32Array = new Float32Array(16); 
   private angle = 0;
 
-  private boxTexture: WebGLTexture = null;
+  private texture: WebGLTexture = null;
 
   private camera: Camera = null;
 
-  private readonly vertices = [
-		 // X, Y, Z           U, V
-		// Top
-		-1.0, 1.0, -1.0,   0, 0,
-		-1.0, 1.0, 1.0,    0, 1,
-		1.0, 1.0, 1.0,     1, 1,
-		1.0, 1.0, -1.0,    1, 0,
-
-		// Left
-		-1.0, 1.0, 1.0,    0, 0,
-		-1.0, -1.0, 1.0,   1, 0,
-		-1.0, -1.0, -1.0,  1, 1,
-		-1.0, 1.0, -1.0,   0, 1,
-
-		// Right
-		1.0, 1.0, 1.0,    1, 1,
-		1.0, -1.0, 1.0,   0, 1,
-		1.0, -1.0, -1.0,  0, 0,
-		1.0, 1.0, -1.0,   1, 0,
-
-		// Front
-		1.0, 1.0, 1.0,    1, 1,
-		1.0, -1.0, 1.0,    1, 0,
-		-1.0, -1.0, 1.0,    0, 0,
-		-1.0, 1.0, 1.0,    0, 1,
-
-		// Back
-		1.0, 1.0, -1.0,    0, 0,
-		1.0, -1.0, -1.0,    0, 1,
-		-1.0, -1.0, -1.0,    1, 1,
-		-1.0, 1.0, -1.0,    1, 0,
-
-		// Bottom
-		-1.0, -1.0, -1.0,   1, 1,
-		-1.0, -1.0, 1.0,    1, 0,
-		1.0, -1.0, 1.0,     0, 0,
-		1.0, -1.0, -1.0,    0, 1,
-  ]; 
-
-  private readonly indices = [
-	// Top
-	0, 1, 2,
-	0, 2, 3,
-
-	// Left
-	5, 4, 6,
-	6, 4, 7,
-
-	// Right
-	8, 9, 10,
-	8, 10, 11,
-
-	// Front
-	13, 12, 14,
-	15, 14, 12,
-
-	// Back
-	16, 17, 18,
-	16, 18, 19,
-
-	// Bottom
-	21, 20, 22,
-	22, 20, 23
-  ]
+  private readonly vertices = susan.meshes[0].vertices;
+  private readonly indices = susan.meshes[0].faces.flat(Infinity);
+  private readonly textureCoords = susan.meshes[0].texturecoords[0];
 
   private normalizeCanvas() {
     this.canvas.width = document.body.clientWidth;
@@ -195,38 +138,44 @@ export class Engine {
 	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
 	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.vertices), this.webgl.STATIC_DRAW);
 	
+	const textureCoordsBuffer = this.webgl.createBuffer();
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
+	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.textureCoords), this.webgl.STATIC_DRAW);
+	
 	const indicesBuffer = this.webgl.createBuffer();
 	this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
 	this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), this.webgl.STATIC_DRAW);
 
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
 	const vertexAttributeLocation = this.webgl.getAttribLocation(this.program, "vertexPosition");
-	const vertexTextureLocation = this.webgl.getAttribLocation(this.program, "textureCoords");
 	this.webgl.vertexAttribPointer(
 		vertexAttributeLocation, 
 		3,
 		this.webgl.FLOAT, false, 
-		5 * Float32Array.BYTES_PER_ELEMENT, 
+		3 * Float32Array.BYTES_PER_ELEMENT, 
 		0
 	);
+	this.webgl.enableVertexAttribArray(vertexAttributeLocation);
 
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
+	const vertexTextureLocation = this.webgl.getAttribLocation(this.program, "textureCoords");
 	this.webgl.vertexAttribPointer(
 		vertexTextureLocation, 
 		2,
 		this.webgl.FLOAT, false, 
-		5 * Float32Array.BYTES_PER_ELEMENT, 
-		3 * Float32Array.BYTES_PER_ELEMENT
+		2 * Float32Array.BYTES_PER_ELEMENT, 
+		0
 	);
-
-	this.webgl.enableVertexAttribArray(vertexAttributeLocation);
 	this.webgl.enableVertexAttribArray(vertexTextureLocation);
 
-	this.boxTexture = this.webgl.createTexture();
-	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.boxTexture);
+	this.texture = this.webgl.createTexture();
+	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+	this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, true);
 	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_S, this.webgl.CLAMP_TO_EDGE);
 	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
 	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MIN_FILTER, this.webgl.LINEAR);
 	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MAG_FILTER, this.webgl.LINEAR);
-	const image = await this.loadImage(box);
+	const image = await loadImage(susanTexture);
 	this.webgl.texImage2D(
 		this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA,
 		this.webgl.UNSIGNED_BYTE,
@@ -251,21 +200,11 @@ export class Engine {
 			projection, 
 			glMatrix.toRadian(45), 
 			this.canvas.width / this.canvas.height, 
-			glMatrix.EPSILON, 1000.0
+			0.1, 1000.0
 		);
 
 		this.webgl.uniformMatrix4fv(this.viewLocation, false, this.camera.getView());
 		this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
 		this.webgl.uniformMatrix4fv(projectionLocation, false, projection);
-  }
-
-  private async loadImage(url: string): Promise<HTMLImageElement> {
-	return new Promise(resolve => {
-        const image = new Image();
-        image.addEventListener('load', () => {
-            resolve(image);
-        });
-        image.src = url;
-    });
   }
 }

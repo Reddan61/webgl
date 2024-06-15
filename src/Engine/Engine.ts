@@ -1,5 +1,4 @@
 import { glMatrix, mat4 } from "gl-matrix"
-import box from "../../resources/box.png"
 import susanTexture from "../../resources/SusanTexture.png"
 import susan from "../../resources/Susan.json"
 
@@ -82,7 +81,6 @@ export class Engine {
   private webgl: WebGLRenderingContext | null = null;
   private program: WebGLProgram | null = null;
 
-  private vertexBuffer: WebGLBuffer | null = null;
   private world: Float32Array | null = null; 
   private worldLocation: WebGLUniformLocation | null = null;
   private viewLocation: WebGLUniformLocation | null = null;
@@ -97,6 +95,7 @@ export class Engine {
   private readonly vertices = susan.meshes[0].vertices;
   private readonly indices = susan.meshes[0].faces.flat(Infinity);
   private readonly textureCoords = susan.meshes[0].texturecoords[0];
+  private readonly normals = susan.meshes[0].normals;
 
   private normalizeCanvas() {
     this.canvas.width = document.body.clientWidth;
@@ -134,19 +133,23 @@ export class Engine {
   }
 
   private async initBuffers() {
-	this.vertexBuffer = this.webgl.createBuffer();
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
+	const vertexBuffer = this.webgl.createBuffer();
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, vertexBuffer);
 	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.vertices), this.webgl.STATIC_DRAW);
 	
 	const textureCoordsBuffer = this.webgl.createBuffer();
 	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
 	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.textureCoords), this.webgl.STATIC_DRAW);
-	
+
+	const normalsBuffer = this.webgl.createBuffer();
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, normalsBuffer);
+	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.normals), this.webgl.STATIC_DRAW);
+
 	const indicesBuffer = this.webgl.createBuffer();
 	this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
 	this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), this.webgl.STATIC_DRAW);
 
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, vertexBuffer);
 	const vertexAttributeLocation = this.webgl.getAttribLocation(this.program, "vertexPosition");
 	this.webgl.vertexAttribPointer(
 		vertexAttributeLocation, 
@@ -156,6 +159,17 @@ export class Engine {
 		0
 	);
 	this.webgl.enableVertexAttribArray(vertexAttributeLocation);
+
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, normalsBuffer);
+	const normalsAttributeLocation = this.webgl.getAttribLocation(this.program, "normals");
+	this.webgl.vertexAttribPointer(
+		normalsAttributeLocation, 
+		3,
+		this.webgl.FLOAT, true, 
+		3 * Float32Array.BYTES_PER_ELEMENT, 
+		0
+	);
+	this.webgl.enableVertexAttribArray(normalsAttributeLocation);
 
 	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
 	const vertexTextureLocation = this.webgl.getAttribLocation(this.program, "textureCoords");

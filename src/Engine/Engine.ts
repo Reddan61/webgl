@@ -1,9 +1,7 @@
 import { glMatrix, mat4 } from "gl-matrix"
-import susanTexture from "../../resources/SusanTexture.png"
-import susan from "../../resources/Susan.json"
 
-import { Camera } from './Camera/Camera';
-import { loadImage } from './Utils/Utils';
+import { Camera } from './Camera';
+import { Object } from './Object';
 
 import { vertexShader } from "./shaders/vertex";
 import { fragmentShader } from "./shaders/fragment"
@@ -51,26 +49,66 @@ export class Engine {
 	this.webgl.uniformMatrix4fv(this.viewLocation, false, this.camera.getView());
   }
 
-  public run = () => {
-	this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-	const identity = new Float32Array(16);
-	mat4.identity(identity);
+  public addObject(object: Object) {
+	this.objects.push(object);
+  }
 
-	mat4.rotate(this.yRotation, identity, this.angle, [0, 1, 0]);
-	mat4.rotate(this.xRotation, identity, this.angle, [1, 0, 0]);
-	mat4.mul(this.world, this.xRotation, this.yRotation);
+  public run = () => {
+	// this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
+	// const identity = new Float32Array(16);
+	// mat4.identity(identity);
+
+	// mat4.rotate(this.yRotation, identity, this.angle, [0, 1, 0]);
+	// mat4.rotate(this.xRotation, identity, this.angle, [1, 0, 0]);
+	// mat4.mul(this.world, this.xRotation, this.yRotation);
+    const currentTime = performance.now() / 1000;
+    // const delta = currentTime - this.lastTime;
+    this.lastTime = currentTime;
+    this.currentfps++;
+
+    if (currentTime - this.lastFpsUpdate >= 1.0) {
+        this.fpsToDraw = this.currentfps;
+        this.currentfps = 0;
+        this.lastFpsUpdate += 1.0;
+    }
 
 	this.update();
 
-	this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
+	// this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
 	
 	this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
 
-	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-	this.webgl.activeTexture(this.webgl.TEXTURE0);
+	this.objects.forEach(object => {
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
+	 	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getVertices()), this.webgl.STATIC_DRAW);
 
-	this.webgl.drawElements(this.webgl.TRIANGLES, this.indices.length, this.webgl.UNSIGNED_SHORT, 0);
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getTextureCoords()), this.webgl.STATIC_DRAW);
+		
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getNormals()), this.webgl.STATIC_DRAW);
+
+		this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
+		this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(object.getIndices()), this.webgl.STATIC_DRAW);
+		
+        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+        this.webgl.texImage2D(
+            this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA,
+            this.webgl.UNSIGNED_BYTE,
+            object.getImage()
+        );
+        this.webgl.bindTexture(this.webgl.TEXTURE_2D, null);
+
+		this.webgl.uniformMatrix4fv(this.transformationLocation, false, object.getMatrix());
+
+        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+        this.webgl.activeTexture(this.webgl.TEXTURE0);
+    
+        this.webgl.drawElements(this.webgl.TRIANGLES, object.getIndices().length, this.webgl.UNSIGNED_SHORT, 0);
+	});
+
+    document.getElementById("fps").innerHTML = `${this.fpsToDraw} fps`;
 
 	requestAnimationFrame(this.run);
   }
@@ -81,21 +119,26 @@ export class Engine {
   private webgl: WebGLRenderingContext | null = null;
   private program: WebGLProgram | null = null;
 
-  private world: Float32Array | null = null; 
-  private worldLocation: WebGLUniformLocation | null = null;
+//   private world: Float32Array | null = null; 
+  private transformationLocation: WebGLUniformLocation | null = null;
   private viewLocation: WebGLUniformLocation | null = null;
   private xRotation: Float32Array = new Float32Array(16); 
   private yRotation: Float32Array = new Float32Array(16); 
   private angle = 0;
 
+  private currentfps = 0; 
+  private fpsToDraw = 0;
+  private lastFpsUpdate = 0;
+  private lastTime = 0;
+
+  private vertexBuffer: WebGLBuffer = null;
+  private textureCoordsBuffer: WebGLBuffer = null;
+  private normalsBuffer: WebGLBuffer = null;
+  private indicesBuffer: WebGLBuffer = null;
   private texture: WebGLTexture = null;
 
+  private objects: Object[] = [];
   private camera: Camera = null;
-
-  private readonly vertices = susan.meshes[0].vertices;
-  private readonly indices = susan.meshes[0].faces.flat(Infinity);
-  private readonly textureCoords = susan.meshes[0].texturecoords[0];
-  private readonly normals = susan.meshes[0].normals;
 
   private normalizeCanvas() {
     this.canvas.width = document.body.clientWidth;
@@ -133,23 +176,26 @@ export class Engine {
   }
 
   private async initBuffers() {
-	const vertexBuffer = this.webgl.createBuffer();
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, vertexBuffer);
-	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.vertices), this.webgl.STATIC_DRAW);
+	const promises: Promise<any>[] = [];
+
+	this.vertexBuffer = this.webgl.createBuffer();
 	
-	const textureCoordsBuffer = this.webgl.createBuffer();
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
-	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.textureCoords), this.webgl.STATIC_DRAW);
+	this.textureCoordsBuffer = this.webgl.createBuffer();
 
-	const normalsBuffer = this.webgl.createBuffer();
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, normalsBuffer);
-	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(this.normals), this.webgl.STATIC_DRAW);
+	this.normalsBuffer = this.webgl.createBuffer();
 
-	const indicesBuffer = this.webgl.createBuffer();
-	this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
-	this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), this.webgl.STATIC_DRAW);
+	this.indicesBuffer = this.webgl.createBuffer();
 
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, vertexBuffer);
+	this.texture = this.webgl.createTexture();
+	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+	this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, true);
+	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_S, this.webgl.CLAMP_TO_EDGE);
+	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
+	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MIN_FILTER, this.webgl.LINEAR);
+	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MAG_FILTER, this.webgl.LINEAR);
+	this.webgl.bindTexture(this.webgl.TEXTURE_2D, null);
+
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
 	const vertexAttributeLocation = this.webgl.getAttribLocation(this.program, "vertexPosition");
 	this.webgl.vertexAttribPointer(
 		vertexAttributeLocation, 
@@ -160,7 +206,7 @@ export class Engine {
 	);
 	this.webgl.enableVertexAttribArray(vertexAttributeLocation);
 
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, normalsBuffer);
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
 	const normalsAttributeLocation = this.webgl.getAttribLocation(this.program, "normals");
 	this.webgl.vertexAttribPointer(
 		normalsAttributeLocation, 
@@ -171,7 +217,7 @@ export class Engine {
 	);
 	this.webgl.enableVertexAttribArray(normalsAttributeLocation);
 
-	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, textureCoordsBuffer);
+	this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
 	const vertexTextureLocation = this.webgl.getAttribLocation(this.program, "textureCoords");
 	this.webgl.vertexAttribPointer(
 		vertexTextureLocation, 
@@ -182,34 +228,23 @@ export class Engine {
 	);
 	this.webgl.enableVertexAttribArray(vertexTextureLocation);
 
-	this.texture = this.webgl.createTexture();
-	this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-	this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, true);
-	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_S, this.webgl.CLAMP_TO_EDGE);
-	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
-	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MIN_FILTER, this.webgl.LINEAR);
-	this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MAG_FILTER, this.webgl.LINEAR);
-	const image = await loadImage(susanTexture);
-	this.webgl.texImage2D(
-		this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA,
-		this.webgl.UNSIGNED_BYTE,
-		image
-	);
-	this.webgl.bindTexture(this.webgl.TEXTURE_2D, null);
+	this.objects.forEach(object => {
+		promises.push(object.init());
+	})
 
+	await Promise.all(promises);
 	this.matrixInit();
   }
 
   private matrixInit() {
 		this.viewLocation = this.webgl.getUniformLocation(this.program, "view");
-		this.worldLocation = this.webgl.getUniformLocation(this.program, "world");
+		this.transformationLocation = this.webgl.getUniformLocation(this.program, "transformation");
 		const projectionLocation = this.webgl.getUniformLocation(this.program, "projection");
 
-		this.world = new Float32Array(16);
+		// this.world = new Float32Array(16);
 		const projection = new Float32Array(16);
 
-
-		mat4.identity(this.world);
+		// mat4.identity(this.world);
 		mat4.perspective(
 			projection, 
 			glMatrix.toRadian(45), 
@@ -218,7 +253,7 @@ export class Engine {
 		);
 
 		this.webgl.uniformMatrix4fv(this.viewLocation, false, this.camera.getView());
-		this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
+		// this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
 		this.webgl.uniformMatrix4fv(projectionLocation, false, projection);
   }
 }

@@ -51,8 +51,7 @@ export class Camera {
     private rotationY: mat4 = null;
     private angleX = 0;
     private angleY = 0;
-    private keys: Record<KeyboardEvent['code'], boolean> = {
-    };
+    private keys: Record<KeyboardEvent['code'], boolean> = {};
 
     private calculateView() {
         const target = vec3.create();

@@ -2,16 +2,20 @@
   "name": "webpack",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://reddan61.github.io/webgl/",
   "main": "index.js",
   "scripts": {
     "build": "webpack",
-    "dev": "webpack serve"
+    "dev": "webpack serve",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "css-loader": "^7.1.2",
     "file-loader": "^6.2.0",
+    "gh-pages": "^6.1.1",
     "html-webpack-plugin": "^5.6.0",
     "sass": "^1.77.4",
     "sass-loader": "^14.2.1",

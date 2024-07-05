@@ -5,6 +5,7 @@ import { Object } from './Object';
 
 import { vertexShader } from "./shaders/vertex";
 import { fragmentShader } from "./shaders/fragment"
+import { ObjectGroup } from "./ObjectGroup";
 
 export class Engine {
   constructor(canvasId: string, camera: Camera) {
@@ -34,13 +35,15 @@ export class Engine {
 	this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
     this.webgl.enable(this.webgl.DEPTH_TEST);
+	this.webgl.depthFunc(this.webgl.LESS);
     this.webgl.enable(this.webgl.CULL_FACE);
     this.webgl.frontFace(this.webgl.CCW);
     this.webgl.cullFace(this.webgl.BACK);
   }
 
-  public update() {
-	this.camera.update();
+  public update(delta: number) {
+	this.camera.update(delta);
+	this.objectGroups.forEach(group => group.update());
 
 	this.updateView();
   }
@@ -49,20 +52,14 @@ export class Engine {
 	this.webgl.uniformMatrix4fv(this.viewLocation, false, this.camera.getView());
   }
 
-  public addObject(object: Object) {
-	this.objects.push(object);
+  public addObjectGroup(group: ObjectGroup) {
+	this.objectGroups.push(group);
   }
 
   public run = () => {
-	// this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-	// const identity = new Float32Array(16);
-	// mat4.identity(identity);
-
-	// mat4.rotate(this.yRotation, identity, this.angle, [0, 1, 0]);
-	// mat4.rotate(this.xRotation, identity, this.angle, [1, 0, 0]);
-	// mat4.mul(this.world, this.xRotation, this.yRotation);
+	
     const currentTime = performance.now() / 1000;
-    // const delta = currentTime - this.lastTime;
+    const delta = currentTime - this.lastTime;
     this.lastTime = currentTime;
     this.currentfps++;
 
@@ -72,40 +69,25 @@ export class Engine {
         this.lastFpsUpdate += 1.0;
     }
 
-	this.update();
+	this.update(delta);
 
-	// this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
-	
 	this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
 
-	this.objects.forEach(object => {
-		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-	 	this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getVertices()), this.webgl.STATIC_DRAW);
+	this.objectGroups.forEach(group => {
+		this.setVertexShaderBuffers(
+			group.getVertices(), 
+			group.getIndices(), 
+			group.getTextureCoords(), 
+			group.getNormals(),
+			group.getImage()
+		);
 
-		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
-		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getTextureCoords()), this.webgl.STATIC_DRAW);
-		
-		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
-		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(object.getNormals()), this.webgl.STATIC_DRAW);
+		group.getObjects().forEach((object) => {
+			this.webgl.uniformMatrix4fv(this.transformationLocation, false, object.getMatrix());
 
-		this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
-		this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(object.getIndices()), this.webgl.STATIC_DRAW);
-		
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-        this.webgl.texImage2D(
-            this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA,
-            this.webgl.UNSIGNED_BYTE,
-            object.getImage()
-        );
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, null);
-
-		this.webgl.uniformMatrix4fv(this.transformationLocation, false, object.getMatrix());
-
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-        this.webgl.activeTexture(this.webgl.TEXTURE0);
-    
-        this.webgl.drawElements(this.webgl.TRIANGLES, object.getIndices().length, this.webgl.UNSIGNED_SHORT, 0);
+			this.webgl.drawElements(this.webgl.TRIANGLES, group.getIndices().length, this.webgl.UNSIGNED_SHORT, 0);
+		})
 	});
 
     document.getElementById("fps").innerHTML = `${this.fpsToDraw} fps`;
@@ -119,12 +101,8 @@ export class Engine {
   private webgl: WebGLRenderingContext | null = null;
   private program: WebGLProgram | null = null;
 
-//   private world: Float32Array | null = null; 
   private transformationLocation: WebGLUniformLocation | null = null;
   private viewLocation: WebGLUniformLocation | null = null;
-  private xRotation: Float32Array = new Float32Array(16); 
-  private yRotation: Float32Array = new Float32Array(16); 
-  private angle = 0;
 
   private currentfps = 0; 
   private fpsToDraw = 0;
@@ -137,7 +115,7 @@ export class Engine {
   private indicesBuffer: WebGLBuffer = null;
   private texture: WebGLTexture = null;
 
-  private objects: Object[] = [];
+  private objectGroups: ObjectGroup[] = [];
   private camera: Camera = null;
 
   private normalizeCanvas() {
@@ -176,8 +154,6 @@ export class Engine {
   }
 
   private async initBuffers() {
-	const promises: Promise<any>[] = [];
-
 	this.vertexBuffer = this.webgl.createBuffer();
 	
 	this.textureCoordsBuffer = this.webgl.createBuffer();
@@ -228,11 +204,6 @@ export class Engine {
 	);
 	this.webgl.enableVertexAttribArray(vertexTextureLocation);
 
-	this.objects.forEach(object => {
-		promises.push(object.init());
-	})
-
-	await Promise.all(promises);
 	this.matrixInit();
   }
 
@@ -256,4 +227,35 @@ export class Engine {
 		// this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
 		this.webgl.uniformMatrix4fv(projectionLocation, false, projection);
   }
+
+  private setVertexShaderBuffers(
+		vertices: number[], 
+		indices: number[], 
+		textureCoords: number[], 
+		normals: number[],
+		image: HTMLImageElement
+	) {
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(vertices), this.webgl.STATIC_DRAW);
+
+	   this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
+	   this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(textureCoords), this.webgl.STATIC_DRAW);
+	   
+	   this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
+	   this.webgl.bufferData(this.webgl.ARRAY_BUFFER, new Float32Array(normals), this.webgl.STATIC_DRAW);
+
+	   this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
+	   this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.webgl.STATIC_DRAW);
+	   
+	   this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+	   this.webgl.texImage2D(
+		   this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA,
+		   this.webgl.UNSIGNED_BYTE,
+		   image
+	   );
+	   
+	   this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
+	   this.webgl.activeTexture(this.webgl.TEXTURE0);
+	//    this.webgl.bindTexture(this.webgl.TEXTURE_2D, null);
+	}
 }

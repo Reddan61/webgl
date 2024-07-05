@@ -35,12 +35,12 @@ export class Camera {
         return this.view;
     }
 
-    public update() {
-        this.manageKeys();
+    public update(delta: number) {
+        this.manageKeys(delta);
     }
 
-    private speed = 0.01;
-    private sens = 0.2;
+    private speed = 10.0;
+    private sens = 30.0;
     private position: vec3 = null;
     private front: vec3 = null;
     private right: vec3 = null;
@@ -70,12 +70,14 @@ export class Camera {
         })
     }
 
-    private manageKeys() {
+    private manageKeys(delta: number) {
         let isChanged = false;
+        const newSpeed = this.speed * delta;
+        const newSens = this.sens * delta;
 
         if (this.keys["KeyA"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.right, this.speed);
+            vec3.scale(temp, this.right, newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -84,7 +86,7 @@ export class Camera {
 
         if (this.keys["KeyD"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.right, this.speed);
+            vec3.scale(temp, this.right, newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -93,7 +95,7 @@ export class Camera {
 
         if (this.keys["KeyW"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.front, this.speed);
+            vec3.scale(temp, this.front, newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -102,7 +104,7 @@ export class Camera {
 
         if (this.keys["KeyS"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.front, this.speed);
+            vec3.scale(temp, this.front, newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -111,7 +113,7 @@ export class Camera {
 
         if (this.keys["Space"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.up, this.speed);
+            vec3.scale(temp, this.up, newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -120,7 +122,7 @@ export class Camera {
 
         if (this.keys["ShiftLeft"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.up, this.speed);
+            vec3.scale(temp, this.up, newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -128,25 +130,25 @@ export class Camera {
         }
 
         if (this.keys["ArrowLeft"]) {
-            this.rotateY(this.angleY + this.sens);
+            this.rotateY(this.angleY + newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowRight"]) {
-            this.rotateY(this.angleY - this.sens);
+            this.rotateY(this.angleY - newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowUp"]) {
-            this.rotateX(this.angleX + this.sens);
+            this.rotateX(this.angleX + newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowDown"]) {
-            this.rotateX(this.angleX - this.sens);
+            this.rotateX(this.angleX - newSens);
 
             isChanged = true;
         }
@@ -170,7 +172,13 @@ export class Camera {
     }
 
     private rotateX(angle: number) {
-        this.angleX = angle;
+        if (angle >= 89.0) {
+            this.angleX = 89.0;
+        } else if(angle <= -89.0) {
+            this.angleX = -89.0;
+        } else {
+            this.angleX = angle;
+        }
 
         const radians = glMatrix.toRadian(this.angleX);
 

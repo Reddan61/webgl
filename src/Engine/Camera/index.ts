@@ -40,7 +40,8 @@ export class Camera {
     }
 
     private speed = 10.0;
-    private sens = 30.0;
+    private arrowSens = 30.0;
+    private mouseSens = 0.1;
     private position: vec3 = null;
     private front: vec3 = null;
     private right: vec3 = null;
@@ -52,6 +53,9 @@ export class Camera {
     private angleX = 0;
     private angleY = 0;
     private keys: Record<KeyboardEvent['code'], boolean> = {};
+    private isMouseDown = false;
+    private lastMouseX = 0;
+    private lastMouseY = 0;
 
     private calculateView() {
         const target = vec3.create();
@@ -68,12 +72,35 @@ export class Camera {
         document.addEventListener("keyup", (e) => {
             this.keys[e.code] = false;
         })
+
+        document.addEventListener("mousedown", (e) => {
+            this.isMouseDown = true;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        })
+        document.addEventListener("mouseup", (e) => {
+            this.isMouseDown = false;
+        })
+
+        document.addEventListener("mousemove", (e) => {
+            if (!this.isMouseDown) return;
+
+            const deltaX = (e.clientX - this.lastMouseX) * this.mouseSens;
+            const deltaY = (e.clientY - this.lastMouseY) * this.mouseSens;
+
+            this.rotateY(this.angleY + deltaX);
+            this.rotateX(this.angleX + deltaY);
+            this.calculateView();
+            
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        })
     }
 
     private manageKeys(delta: number) {
         let isChanged = false;
         const newSpeed = this.speed * delta;
-        const newSens = this.sens * delta;
+        const newSens = this.arrowSens * delta;
 
         if (this.keys["KeyA"]) {
             const temp = vec3.create();

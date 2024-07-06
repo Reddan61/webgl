@@ -4,3 +4,22 @@ body {
   max-height: 100vh;
   min-height: 100vh;
 }
+
+.wrapper {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.fps {
+  font-size: 32px;
+  color: red;
+}
+
+.controls {
+  border-radius: 4px;
+  font-size: 32px;
+  color: white;
+  background-color: black;
+}

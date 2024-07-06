@@ -10,6 +10,13 @@ import susanTexture from "../resources/SusanTexture.png"
 import susan from "../resources/Susan.json"
 import { ObjectGroup } from "./Engine/ObjectGroup"
 
+document.getElementById("controls").addEventListener("click", () => {
+    alert(`
+        Передвижение: WASD + Space + Shift
+        Осмотр: стрелочки или движение мыши с зажатой левой кнопкой    
+    `);
+});
+
 const start = async () => {
     const cameraPosition = vec3.create();
     cameraPosition[0] = 0;

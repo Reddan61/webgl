@@ -8,7 +8,7 @@ import { Object } from "./Engine/Object"
 
 import susanTexture from "../resources/SusanTexture.png"
 import susan from "../resources/Susan.json"
-import { ObjectGroup } from "./Engine/ObjectGroup"
+import { loadImage } from "./Engine/Utils/Utils"
 
 document.getElementById("controls").addEventListener("click", () => {
     alert(`
@@ -23,54 +23,67 @@ const start = async () => {
     cameraPosition[1] = 0;
     cameraPosition[2] = 5;
 
-    const monkeyGroup = new ObjectGroup(
+    const susanImage = await loadImage(susanTexture);
+
+    const monkey1 = new Object(
         susan.meshes[0].vertices,
         susan.meshes[0].faces.flat(Infinity),
         susan.meshes[0].texturecoords[0],
         susan.meshes[0].normals,
-        susanTexture
-    );
-
-    await monkeyGroup.init();
-
-    monkeyGroup.addObject(
-        new Object(
-            [0, 0, 0]
-        )
-    );
-    monkeyGroup.addObject(
-        new Object(
-            [4, 1, 0]
-        )
-    );
-    monkeyGroup.addObject(
-        new Object(
-            [-4, 1, 0]
-        )
-    );
-
-    monkeyGroup.addObject(
-        new Object(
-            [0, 0, -4]
-        )
-    );
-    monkeyGroup.addObject(
-        new Object(
-            [4, 1, -4]
-        )
-    );
-    monkeyGroup.addObject(
-        new Object(
-            [-4, 1, -4]
-        )
-    );
+        [0, 0, 0],
+        susanImage
+    )
+    const monkey2 = new Object(
+        susan.meshes[0].vertices,
+        susan.meshes[0].faces.flat(Infinity),
+        susan.meshes[0].texturecoords[0],
+        susan.meshes[0].normals,
+        [4, 1, 0],
+        susanImage
+    )
+    const monkey3 = new Object(
+        susan.meshes[0].vertices,
+        susan.meshes[0].faces.flat(Infinity),
+        susan.meshes[0].texturecoords[0],
+        susan.meshes[0].normals,
+        [-4, 1, 0],
+        susanImage
+    )
+    const monkey4 = new Object(
+        susan.meshes[0].vertices,
+        susan.meshes[0].faces.flat(Infinity),
+        susan.meshes[0].texturecoords[0],
+        susan.meshes[0].normals,
+        [0, 0, -4],
+        susanImage
+    )
+    const monkey5 = new Object(
+        susan.meshes[0].vertices,
+        susan.meshes[0].faces.flat(Infinity),
+        susan.meshes[0].texturecoords[0],
+        susan.meshes[0].normals,
+        [4, 1, -4],
+        susanImage
+    )
+    const monkey6 = new Object(
+        susan.meshes[0].vertices,
+        susan.meshes[0].faces.flat(Infinity),
+        susan.meshes[0].texturecoords[0],
+        susan.meshes[0].normals,
+        [-4, 1, -4],
+        susanImage
+    )
     
     const camera = new Camera(cameraPosition);
     const engine = new Engine("canvas", camera);
 
-    engine.addObjectGroup(monkeyGroup);
-
     await engine.init();
+    engine.addObject(monkey1);
+    engine.addObject(monkey2);
+    engine.addObject(monkey3);
+    engine.addObject(monkey4);
+    engine.addObject(monkey5);
+    engine.addObject(monkey6);
 
 	engine.run();
 }

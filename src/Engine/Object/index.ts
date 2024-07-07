@@ -2,9 +2,19 @@ import { mat4, vec3 } from "gl-matrix";
 
 export class Object {
     constructor(
-        position: vec3
+        vertices: number[], 
+        indices: number[], 
+        textureCoords: number[], 
+        normals: number[],
+        position: vec3,
+        image: HTMLImageElement
     ) {
         this.position = position;
+        this.vertices = vertices;
+        this.indices = indices;
+        this.textureCoords = textureCoords;
+        this.normals = normals;
+        this.image = image;
 
         mat4.fromTranslation(this.translation, this.position);
     }
@@ -13,6 +23,26 @@ export class Object {
         return this.matrix;
     }
 
+    public getImage() {
+        return this.image;
+    }
+
+    public getVertices() {
+        return this.vertices;
+    }
+
+    public getNormals() {
+        return this.normals;
+    }
+
+    public getTextureCoords() {
+        return this.textureCoords;
+    }
+
+    public getIndices() {
+        return this.indices;
+    }
+    
     public update() {
         this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
 	    const identity = new Float32Array(16);
@@ -25,6 +55,11 @@ export class Object {
     }
 
     private position: vec3 = null;
+    private vertices: number[] = null;
+    private indices: number[] = null;
+    private textureCoords: number[] = null;
+    private normals: number[] = null;
+    private image: HTMLImageElement = null;
     private translation: mat4 = new Float32Array(16);
     private rotation: mat4 = new Float32Array(16); 
     private matrix:  mat4 = new Float32Array(16);

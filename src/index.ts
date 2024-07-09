@@ -5,10 +5,15 @@ import { Engine } from "./Engine/Engine"
 import { Camera } from "./Engine/Camera"
 import { vec3 } from "gl-matrix"
 import { Object } from "./Engine/Object"
+import { loadImage, loadObj } from "./Engine/Utils/Utils"
 
-import susanTexture from "../resources/SusanTexture.png"
 import susan from "../resources/Susan.json"
-import { loadImage } from "./Engine/Utils/Utils"
+import helmetURL from "../resources/helmet.obj"
+import susURL from "../resources/sus.obj"
+import susTexture from "../resources/sus.png"
+import susanTexture from "../resources/SusanTexture.png"
+import msssingTexture from "../resources/missing.png"
+import helmetTexture from "../resources/helmet.png"
 
 document.getElementById("controls").addEventListener("click", () => {
     alert(`
@@ -23,7 +28,32 @@ const start = async () => {
     cameraPosition[1] = 0;
     cameraPosition[2] = 5;
 
+    const missingImage = await loadImage(msssingTexture);
     const susanImage = await loadImage(susanTexture);
+    const helmetImage = await loadImage(helmetTexture);
+    const susImage = await loadImage(susTexture);
+
+    const helmetParsed = await loadObj(helmetURL)
+    const susParsed = await loadObj(susURL)
+
+    const helmet = new Object(
+        helmetParsed.vertices, 
+        helmetParsed.indices, 
+        helmetParsed.textureCoords, 
+        helmetParsed.normals,
+        [50, 0, 0],
+        helmetImage,
+        false
+    )
+
+    const sus = new Object(
+        susParsed.vertices, 
+        susParsed.indices, 
+        susParsed.textureCoords, 
+        susParsed.normals,
+        [0, 0, 5],
+        susImage
+    )
 
     const monkey1 = new Object(
         susan.meshes[0].vertices,
@@ -84,6 +114,8 @@ const start = async () => {
     engine.addObject(monkey4);
     engine.addObject(monkey5);
     engine.addObject(monkey6);
+    engine.addObject(helmet);
+    engine.addObject(sus);
 
 	engine.run();
 }

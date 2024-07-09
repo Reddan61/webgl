@@ -41,7 +41,7 @@ module.exports = {
         use: ['ts-loader'] 
       },
       {
-        test: /\.(png|jpe?g|gif)$/i,
+        test: /\.(png|jpe?g|gif|obj)$/i,
         use: [
           {
             loader: 'file-loader',

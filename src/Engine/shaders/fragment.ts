@@ -8,7 +8,7 @@ export const fragmentShader = `
   void main(void) {
     vec3 ambient = vec3(0.2, 0.2, 0.2);
     vec3 directionalIntensity = vec3(0.9, 0.9, 0.9);
-    vec3 directionalLightDir = normalize(vec3(3.0, 4.0, -2.0));
+    vec3 directionalLightDir = normalize(vec3(0.0, 2.0, 5.0));
 
     vec3 surfaceNormal = normalize(fragNormal);
     vec4 texel = texture2D(sampler, fragTextureCoords);

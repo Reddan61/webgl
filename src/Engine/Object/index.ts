@@ -7,7 +7,8 @@ export class Object {
         textureCoords: number[], 
         normals: number[],
         position: vec3,
-        image: HTMLImageElement
+        image: HTMLImageElement,
+        animate = true
     ) {
         this.position = position;
         this.vertices = vertices;
@@ -15,8 +16,12 @@ export class Object {
         this.textureCoords = textureCoords;
         this.normals = normals;
         this.image = image;
+        this.animate = animate;
 
         mat4.fromTranslation(this.translation, this.position);
+        const identity = new Float32Array(16);
+	    mat4.identity(identity);
+        mat4.mul(this.matrix, this.translation, identity);
     }
 
     public getMatrix() {
@@ -44,6 +49,8 @@ export class Object {
     }
     
     public update() {
+        if (!this.animate) return;
+
         this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
 	    const identity = new Float32Array(16);
 	    mat4.identity(identity);
@@ -66,4 +73,5 @@ export class Object {
     private xRotation: mat4 = new Float32Array(16); 
     private yRotation: mat4 = new Float32Array(16); 
     private angle = 0;
+    private animate = false;
 }

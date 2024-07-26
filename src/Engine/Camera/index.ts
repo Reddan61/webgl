@@ -1,30 +1,11 @@
 import { glMatrix, mat4, vec3 } from "gl-matrix";
+import { Rotation } from "../Rotation";
 
 export class Camera {
     constructor(position: vec3) {
-        const front = vec3.create();
-        front[0] = 0;
-        front[1] = 0;
-        front[2] = -1;
-
-        const right = vec3.create();
-        right[0] = 1;
-        right[1] = 0;
-        right[2] = 0;
-
-        const up = vec3.create();
-        up[0] = 0;
-        up[1] = 1;
-        up[2] = 0;
-
+        this.rotation = new Rotation();
         this.position = position;
-        this.front = front;
-        this.right = right;
-        this.up = up;
         this.view = mat4.create();
-        this.rotation = mat4.create();
-        this.rotationX = mat4.create();
-        this.rotationY = mat4.create();
         
         this.calculateView();
 
@@ -43,15 +24,8 @@ export class Camera {
     private arrowSens = 30.0;
     private mouseSens = 0.1;
     private position: vec3 = null;
-    private front: vec3 = null;
-    private right: vec3 = null;
-    private up: vec3 = null;
     private view: mat4 = null;
-    private rotation: mat4 = null;
-    private rotationX: mat4 = null;
-    private rotationY: mat4 = null;
-    private angleX = 0;
-    private angleY = 0;
+    private rotation: Rotation = null;
     private keys: Record<KeyboardEvent['code'], boolean> = {};
     private isMouseDown = false;
     private lastMouseX = 0;
@@ -59,9 +33,9 @@ export class Camera {
 
     private calculateView() {
         const target = vec3.create();
-		vec3.add(target, this.position, this.front);
+		vec3.add(target, this.position, this.rotation.getFront());
 
-		mat4.lookAt(this.view, this.position,  target, this.up);
+		mat4.lookAt(this.view, this.position,  target, this.rotation.getUp());
     }
 
     private subscribeEvents() {
@@ -88,8 +62,10 @@ export class Camera {
             const deltaX = (e.clientX - this.lastMouseX) * this.mouseSens;
             const deltaY = (e.clientY - this.lastMouseY) * this.mouseSens;
 
-            this.rotateY(this.angleY + deltaX);
-            this.rotateX(this.angleX + deltaY);
+            this.rotation.rotate(
+                this.rotation.getXAngle() + deltaY,
+                this.rotation.getYAngle() + deltaX,
+            );
             this.calculateView();
             
             this.lastMouseX = e.clientX;
@@ -104,7 +80,7 @@ export class Camera {
 
         if (this.keys["KeyA"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.right, newSpeed);
+            vec3.scale(temp, this.rotation.getRight(), newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -113,7 +89,7 @@ export class Camera {
 
         if (this.keys["KeyD"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.right, newSpeed);
+            vec3.scale(temp, this.rotation.getRight(), newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -122,7 +98,7 @@ export class Camera {
 
         if (this.keys["KeyW"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.front, newSpeed);
+            vec3.scale(temp, this.rotation.getFront(), newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -131,7 +107,7 @@ export class Camera {
 
         if (this.keys["KeyS"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.front, newSpeed);
+            vec3.scale(temp, this.rotation.getFront(), newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -140,7 +116,7 @@ export class Camera {
 
         if (this.keys["Space"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.up, newSpeed);
+            vec3.scale(temp, this.rotation.getUp(), newSpeed);
 
             vec3.add(this.position, this.position, temp);
 
@@ -149,7 +125,7 @@ export class Camera {
 
         if (this.keys["ShiftLeft"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.up, newSpeed);
+            vec3.scale(temp, this.rotation.getUp(), newSpeed);
 
             vec3.subtract(this.position, this.position, temp);
 
@@ -157,25 +133,25 @@ export class Camera {
         }
 
         if (this.keys["ArrowLeft"]) {
-            this.rotateY(this.angleY + newSens);
+            this.rotation.rotate(null, this.rotation.getYAngle() + newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowRight"]) {
-            this.rotateY(this.angleY - newSens);
+            this.rotation.rotate(null, this.rotation.getYAngle() - newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowUp"]) {
-            this.rotateX(this.angleX + newSens);
+            this.rotation.rotate(this.rotation.getXAngle() + newSens, null);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowDown"]) {
-            this.rotateX(this.angleX - newSens);
+            this.rotation.rotate(this.rotation.getXAngle() - newSens, null);
 
             isChanged = true;
         }
@@ -183,50 +159,5 @@ export class Camera {
         if (isChanged) {
             this.calculateView();
         }
-    }
-
-    private rotateY(angle: number) {
-        this.angleY = angle;
-
-        const radians = glMatrix.toRadian(this.angleY);
-
-        const identity = mat4.create();
-        mat4.identity(identity);
-        
-        mat4.rotate(this.rotationY, identity, radians, [0, 1, 0]);
-
-        this.calculateRotation();
-    }
-
-    private rotateX(angle: number) {
-        if (angle >= 89.0) {
-            this.angleX = 89.0;
-        } else if(angle <= -89.0) {
-            this.angleX = -89.0;
-        } else {
-            this.angleX = angle;
-        }
-
-        const radians = glMatrix.toRadian(this.angleX);
-
-        const identity = mat4.create();
-        mat4.identity(identity);
-
-        mat4.rotate(this.rotationX, identity, radians, [1, 0, 0]);
-
-        this.calculateRotation();
-    }
-
-    private calculateRotation() {
-        mat4.multiply(this.rotation, this.rotationY, this.rotationX);
-
-        vec3.transformMat4(this.front, [0, 0, -1], this.rotation);
-        vec3.normalize(this.front, this.front);
-
-        vec3.transformMat4(this.up, [0, 1, 0], this.rotation);
-        vec3.normalize(this.up, this.up);
-
-        vec3.cross(this.right, this.front, this.up);
-        vec3.normalize(this.right, this.right);
     }
 }

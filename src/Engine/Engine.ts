@@ -6,13 +6,23 @@ import { Object } from './Object';
 import { vertexShader } from "./shaders/vertex";
 import { fragmentShader } from "./shaders/fragment"
 
-
-interface EngineObject {
-	texture: WebGLTexture,
+interface EngineObjectGeometry {
 	vertices: Float32Array;
 	textureCoords: Float32Array;
 	normals: Float32Array;
 	indices: Uint16Array;
+}
+
+interface EngineObjectMaterials {
+	baseTexture: WebGLTexture
+}
+interface EngineObjectContent {
+	geometry: EngineObjectGeometry,
+	materials: EngineObjectMaterials
+}
+
+interface EngineObject {
+	content: EngineObjectContent[],
 	object: Object;
 }
 
@@ -45,9 +55,7 @@ export class Engine {
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
     this.webgl.enable(this.webgl.DEPTH_TEST);
 	this.webgl.depthFunc(this.webgl.LESS);
-    this.webgl.enable(this.webgl.CULL_FACE);
-    this.webgl.frontFace(this.webgl.CCW);
-    this.webgl.cullFace(this.webgl.BACK);
+	this.enableCullFace();
   }
 
   public update(delta: number) {
@@ -62,13 +70,25 @@ export class Engine {
   }
 
   public addObject(object: Object) {
+	const content: EngineObject['content'] = [];
+
+	object.getContent().forEach(({ geometry, materials }) => {
+		content.push({
+			geometry: {
+				vertices: new Float32Array(geometry.vertices),
+				normals: new Float32Array(geometry.normals),
+				textureCoords: new Float32Array(geometry.textureCoords),
+				indices: new Uint16Array(geometry.indices)
+			},
+			materials: {
+				baseTexture: this.createObjectTexture(materials.baseTexture, object.isFlipYTexture())
+			}
+		})
+	})
+
 	const newObject: EngineObject = {
 		object,
-		vertices: new Float32Array(object.getVertices()),
-		normals: new Float32Array(object.getNormals()),
-		textureCoords: new Float32Array(object.getTextureCoords()),
-		indices: new Uint16Array(object.getIndices()),
-		texture: this.createObjectTexture(object.getImage())
+		content
 	}
 
 	this.objects.push(newObject);
@@ -92,9 +112,17 @@ export class Engine {
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
 
 	this.objects.forEach((engineObject) => {
-		this.setVertexShaderBuffers(engineObject);
+		if (engineObject.object.isSingleFace()) {
+			this.disableCullFace();
+		} else {
+			this.enableCullFace();
+		}
+		
+		engineObject.content.forEach(({ geometry, materials }) => {
+			this.setVertexShaderBuffers(engineObject, geometry, materials);
 
-		this.webgl.drawElements(this.webgl.TRIANGLES, engineObject.indices.length, this.webgl.UNSIGNED_SHORT, 0);
+			this.webgl.drawElements(this.webgl.TRIANGLES, geometry.indices.length, this.webgl.UNSIGNED_SHORT, 0);
+		})
 	})
 
     document.getElementById("fps").innerHTML = `${this.fpsToDraw} fps`;
@@ -109,6 +137,7 @@ export class Engine {
   private program: WebGLProgram | null = null;
 
   private transformationLocation: WebGLUniformLocation | null = null;
+  private normalMatLocation: WebGLUniformLocation | null = null;
   private viewLocation: WebGLUniformLocation | null = null;
 
   private currentfps = 0; 
@@ -127,6 +156,16 @@ export class Engine {
   private normalizeCanvas() {
     this.canvas.width = document.body.clientWidth;
     this.canvas.height = document.body.clientHeight;
+  }
+
+  private enableCullFace() {
+    this.webgl.enable(this.webgl.CULL_FACE);
+    this.webgl.frontFace(this.webgl.CCW);
+    this.webgl.cullFace(this.webgl.BACK);
+  }
+
+  private disableCullFace() {
+    this.webgl.disable(this.webgl.CULL_FACE);
   }
 
   private shaderInit(source: string, mode: WebGLRenderingContextBase["FRAGMENT_SHADER" | "VERTEX_SHADER"]): WebGLShader {
@@ -207,12 +246,11 @@ export class Engine {
   private matrixInit() {
 		this.viewLocation = this.webgl.getUniformLocation(this.program, "view");
 		this.transformationLocation = this.webgl.getUniformLocation(this.program, "transformation");
+		this.normalMatLocation = this.webgl.getUniformLocation(this.program, "normalMat");
 		const projectionLocation = this.webgl.getUniformLocation(this.program, "projection");
 
-		// this.world = new Float32Array(16);
 		const projection = new Float32Array(16);
 
-		// mat4.identity(this.world);
 		mat4.perspective(
 			projection, 
 			glMatrix.toRadian(45), 
@@ -221,35 +259,37 @@ export class Engine {
 		);
 
 		this.webgl.uniformMatrix4fv(this.viewLocation, false, this.camera.getView());
-		// this.webgl.uniformMatrix4fv(this.worldLocation, false, this.world);
 		this.webgl.uniformMatrix4fv(projectionLocation, false, projection);
   }
 
   private setVertexShaderBuffers(
-		engineObject: EngineObject
+		engineObject: EngineObject,
+		geometry: EngineObjectGeometry,
+		materials: EngineObjectMaterials
 	) {
 		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, engineObject.vertices, this.webgl.DYNAMIC_DRAW);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, geometry.vertices, this.webgl.DYNAMIC_DRAW);
 
-	   this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
-	   this.webgl.bufferData(this.webgl.ARRAY_BUFFER, engineObject.textureCoords, this.webgl.DYNAMIC_DRAW);
-	   
-	   this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
-	   this.webgl.bufferData(this.webgl.ARRAY_BUFFER, engineObject.normals, this.webgl.DYNAMIC_DRAW);
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.textureCoordsBuffer);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, geometry.textureCoords, this.webgl.DYNAMIC_DRAW);
+		
+		this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
+		this.webgl.bufferData(this.webgl.ARRAY_BUFFER, geometry.normals, this.webgl.DYNAMIC_DRAW);
 
-	   this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
-	   this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, engineObject.indices, this.webgl.DYNAMIC_DRAW);
-	   
-		this.webgl.uniformMatrix4fv(this.transformationLocation, false, engineObject.object.getMatrix());
+		this.webgl.bindBuffer(this.webgl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
+		this.webgl.bufferData(this.webgl.ELEMENT_ARRAY_BUFFER, geometry.indices, this.webgl.DYNAMIC_DRAW);
+		
+		this.webgl.uniformMatrix4fv(this.transformationLocation, false, engineObject.object.getModelMatrix());
+		this.webgl.uniformMatrix3fv(this.normalMatLocation, false, engineObject.object.getNormalMatrix());
 
-	   this.webgl.bindTexture(this.webgl.TEXTURE_2D, engineObject.texture);
-	   this.webgl.activeTexture(this.webgl.TEXTURE0);
+		this.webgl.bindTexture(this.webgl.TEXTURE_2D, materials.baseTexture);
+		this.webgl.activeTexture(this.webgl.TEXTURE0);
 	}
 
-	private createObjectTexture(image: HTMLImageElement) {
+	private createObjectTexture(image: HTMLImageElement, flipY: boolean) {
 		const texture = this.webgl.createTexture();
 		this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture);
-		this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, true);
+		this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, flipY);
 		this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_S, this.webgl.CLAMP_TO_EDGE);
 		this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
 		this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MIN_FILTER, this.webgl.LINEAR);

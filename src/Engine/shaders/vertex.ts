@@ -3,6 +3,7 @@ export const vertexShader = `
   attribute vec2 textureCoords;
   attribute vec3 normals;
 
+  uniform mat3 normalMat;
   uniform mat4 transformation;
   uniform mat4 view;
   uniform mat4 projection;
@@ -12,7 +13,7 @@ export const vertexShader = `
 
   void main(void) {
     fragTextureCoords = textureCoords;
-    fragNormal = (transformation * vec4(normals, 0.0)).xyz;
+    fragNormal = normalize(normalMat * normals);
     gl_Position = projection * view * transformation * vec4(vertexPosition, 1.0);
   }
 `;

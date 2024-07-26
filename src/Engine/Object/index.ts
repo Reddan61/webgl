@@ -1,77 +1,90 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat3, mat4, vec3 } from "gl-matrix";
+import { Rotation } from "../Rotation";
+
+interface Geometry {
+    vertices: number[], 
+    indices: number[], 
+    textureCoords: number[], 
+    normals: number[],
+};
+
+interface Materials {
+    baseTexture: HTMLImageElement
+}
+
+type ObjectContent = {
+    geometry: Geometry,
+    materials: Materials
+}[]
 
 export class Object {
     constructor(
-        vertices: number[], 
-        indices: number[], 
-        textureCoords: number[], 
-        normals: number[],
+        content: ObjectContent,
         position: vec3,
-        image: HTMLImageElement,
-        animate = true
+        scaling: vec3
     ) {
         this.position = position;
-        this.vertices = vertices;
-        this.indices = indices;
-        this.textureCoords = textureCoords;
-        this.normals = normals;
-        this.image = image;
-        this.animate = animate;
+        this.content = content;
+        this.rotation = new Rotation();
 
+        mat4.fromScaling(this.scaling, scaling);
         mat4.fromTranslation(this.translation, this.position);
-        const identity = new Float32Array(16);
-	    mat4.identity(identity);
-        mat4.mul(this.matrix, this.translation, identity);
+        
+        mat4.mul(this.transformMatrix, this.translation, this.scaling);
+        this.calculateModelMatrix();
     }
 
-    public getMatrix() {
-        return this.matrix;
+    public getModelMatrix() {
+        return this.modelMatrix;
     }
 
-    public getImage() {
-        return this.image;
+    public getNormalMatrix() {
+        return this.normalMatrix;
     }
 
-    public getVertices() {
-        return this.vertices;
+    public getContent() {
+        return this.content;
     }
 
-    public getNormals() {
-        return this.normals;
+    public isSingleFace() {
+        return this.singleFace;
     }
 
-    public getTextureCoords() {
-        return this.textureCoords;
+    public isFlipYTexture() {
+        return this.flipYTexture;
     }
 
-    public getIndices() {
-        return this.indices;
+    public setFlipYTexture(bool: boolean) {
+        this.flipYTexture = bool;
+    }
+
+    public setSingleFace(bool: boolean) {
+        this.singleFace = bool;
+    }
+
+    public rotate(xAngle: number, yAngle: number) {
+        this.rotation.rotate(xAngle, yAngle);
+        this.calculateModelMatrix();
     }
     
     public update() {
-        if (!this.animate) return;
+    }
 
-        this.angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-	    const identity = new Float32Array(16);
-	    mat4.identity(identity);
-
-	    mat4.rotate(this.yRotation, identity, this.angle, [0, 1, 0]);
-	    mat4.rotate(this.xRotation, identity, this.angle, [1, 0, 0]);
-	    mat4.mul(this.rotation, this.xRotation, this.yRotation);
-        mat4.mul(this.matrix, this.translation, this.rotation);
+    private calculateModelMatrix() {
+        mat4.mul(this.modelMatrix, this.transformMatrix, this.rotation.getRotation());
+        mat3.normalFromMat4(this.normalMatrix, this.modelMatrix);
     }
 
     private position: vec3 = null;
-    private vertices: number[] = null;
-    private indices: number[] = null;
-    private textureCoords: number[] = null;
-    private normals: number[] = null;
-    private image: HTMLImageElement = null;
-    private translation: mat4 = new Float32Array(16);
-    private rotation: mat4 = new Float32Array(16); 
-    private matrix:  mat4 = new Float32Array(16);
-    private xRotation: mat4 = new Float32Array(16); 
-    private yRotation: mat4 = new Float32Array(16); 
-    private angle = 0;
-    private animate = false;
+    private content: ObjectContent = null;
+    private singleFace = false;
+    private flipYTexture = true;
+
+    private translation: mat4 = mat4.create();
+    private scaling: mat4 = mat4.create();
+    private transformMatrix: mat4 = mat4.create();
+    private normalMatrix: mat3 = mat3.create();
+    private modelMatrix:  mat4 = mat4.create();
+
+    private rotation: Rotation = null;
 }

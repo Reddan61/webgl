@@ -1,25 +1,36 @@
 body {
-  max-width: 100%;
-  min-width: 100%;
-  max-height: 100vh;
-  min-height: 100vh;
+    max-width: 100%;
+    min-width: 100%;
+    max-height: 100vh;
+    min-height: 100vh;
 }
 
 .wrapper {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 20px;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
 .fps {
-  font-size: 32px;
-  color: red;
+    font-size: 32px;
+    color: red;
 }
 
 .controls {
-  border-radius: 4px;
-  font-size: 32px;
-  color: white;
-  background-color: black;
+    border-radius: 4px;
+    font-size: 32px;
+    color: white;
+    background-color: black;
+}
+
+.aabb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 12px;
+    font-size: 32px;
+    color: white;
+    background-color: black;
 }

@@ -1,17 +1,17 @@
-import "./reset.scss"
-import "./index.scss"
+import "./reset.scss";
+import "./index.scss";
 
-import { Engine } from "./Engine/Engine"
-import { Camera } from "./Engine/Camera"
-import { vec3 } from "gl-matrix"
-import { Object } from "./Engine/Object"
-import { loadGLTF, loadImage, loadObj } from "./Engine/Utils/Utils"
+import { Engine } from "./Engine/Engine";
+import { Camera } from "./Engine/Camera";
+import { vec3 } from "gl-matrix";
+import { Object } from "./Engine/Object";
+import { loadGLTF, loadImage, loadObj } from "./Engine/Utils/Utils";
 
-import susURL from "../resources/sus.obj"
-import susTexture from "../resources/sus.png"
-import duckURL from "../resources/duck/duck.gltf"
-import shibaURL from "../resources/shiba/shiba.gltf"
-import buildingURL from "../resources/building/building.gltf"
+import susURL from "../resources/sus.obj";
+import susTexture from "../resources/sus.png";
+import duckURL from "../resources/duck/duck.gltf";
+import shibaURL from "../resources/shiba/shiba.gltf";
+import buildingURL from "../resources/building/building.gltf";
 // import msssingTexture from "../resources/missing.png"
 
 document.getElementById("controls").addEventListener("click", () => {
@@ -20,7 +20,6 @@ document.getElementById("controls").addEventListener("click", () => {
         Осмотр: стрелочки или движение мыши с зажатой левой кнопкой    
     `);
 });
-
 
 const start = async () => {
     const cameraPosition = vec3.create();
@@ -61,18 +60,17 @@ const start = async () => {
             {
                 geometry: susParsed,
                 materials: {
-                    baseTexture: susImage
-                }
-            }
+                    baseTexture: susImage,
+                },
+            },
         ],
         [0, 0, 5],
         [1, 1, 1]
-    )
-    
+    );
+
     const camera = new Camera(cameraPosition);
     const engine = new Engine("canvas", camera);
 
-    await engine.init();
     engine.addObject(sus);
     engine.addObject(duck1);
     engine.addObject(duck2);
@@ -81,7 +79,12 @@ const start = async () => {
     engine.addObject(shiba3);
     engine.addObject(building1);
 
-	engine.run();
-}
+    engine.run();
+
+    document.getElementById("aabb").addEventListener("change", (e) => {
+        const checked = (e.target as HTMLInputElement).checked;
+        engine.setShowAABB(checked);
+    });
+};
 
 start();

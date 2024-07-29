@@ -1,15 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Webpack</title>
-</head>
-<body>
-  <div class="wrapper">
-    <div id="fps" class="fps">0</div>
-    <button id="controls" class="controls">Посмотреть управление</button>
-  </div>
-  <canvas id="canvas" width="100%" height="100%"></canvas>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Webpack</title>
+    </head>
+    <body>
+        <div class="wrapper">
+            <div id="fps" class="fps">0</div>
+            <div class="aabb">
+                <input type="checkbox" id="aabb" />
+                Включить AABB
+            </div>
+            <button id="controls" class="controls">
+                Посмотреть управление
+            </button>
+        </div>
+        <canvas id="canvas" width="100%" height="100%"></canvas>
+    </body>
 </html>

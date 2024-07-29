@@ -21,7 +21,11 @@ const ACCESSOR_LENGTH: Record<ACCESSOR_TYPE, number> = {
 }
 
 interface ParsedGeometry {
-    vertices: number[],
+    vertices: {
+        data: number[],
+        max: number[],
+        min: number[],
+    },
     normals: number[],
     textureCoords: number[],
     indices: number[],
@@ -79,13 +83,16 @@ const getAccessorData = (gltf: GLTF, buffers: ArrayBuffer[], index: number) => {
 
     const buffer = buffers[bufferIndex];
 
-    const result = readFromBuffer(
+    const bufferData = readFromBuffer(
         buffer, count, 
         byteOffsetAccessor + byteOffsetView, 
         byteStride, componentType, type
     );
     
-    return result;
+    return {
+        data: bufferData,
+        max, min
+    };
 }
 
 const getImage = (gltf: GLTF, images:  HTMLImageElement[], imageIndex: number): HTMLImageElement | null => {
@@ -142,12 +149,12 @@ const parseMesh = (gltf: GLTF, buffers: ArrayBuffer[], images:  HTMLImageElement
 
         if (indicesIndex !== undefined) {
             const { NORMAL, POSITION, TEXCOORD_0 } = attributes;
-    
+
             result.push({
                 geometry: {
-                    indices: getAccessorData(gltf, buffers, indicesIndex),
-                    normals: getAccessorData(gltf, buffers, NORMAL),
-                    textureCoords: getAccessorData(gltf, buffers, TEXCOORD_0),
+                    indices: getAccessorData(gltf, buffers, indicesIndex).data,
+                    normals: getAccessorData(gltf, buffers, NORMAL).data,
+                    textureCoords: getAccessorData(gltf, buffers, TEXCOORD_0).data,
                     vertices: getAccessorData(gltf, buffers, POSITION)
                 },
                 materials: materialResult

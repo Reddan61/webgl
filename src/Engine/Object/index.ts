@@ -1,8 +1,13 @@
 import { mat3, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "../Rotation";
 
+
 interface Geometry {
-    vertices: number[], 
+    vertices: {
+        data: number[],
+        max: number[],
+        min: number[]
+    }, 
     indices: number[], 
     textureCoords: number[], 
     normals: number[],

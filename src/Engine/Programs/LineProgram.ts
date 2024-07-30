@@ -2,9 +2,19 @@ import { mat4 } from "gl-matrix";
 import { Program } from "./Program";
 import { vertexShader } from "../shaders/lines/vertex";
 import { fragmentShader } from "../shaders/lines/fragment";
-import { EngineObject, EngineObjectAABB } from "../Engine";
+
+export type LineProgramVertices = Float32Array;
+export type LineProgramIndices = Uint16Array;
 
 export class LineProgram extends Program {
+    private vertexBuffer: WebGLBuffer;
+    private indicesBuffer: WebGLBuffer;
+
+    private vertexAttributeLocation: number;
+
+    private transformationLocation: WebGLUniformLocation;
+    private viewLocation: WebGLUniformLocation;
+
     constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
@@ -13,10 +23,10 @@ export class LineProgram extends Program {
         this.matrixInit(perspective, view);
     }
 
-    public draw(aabb: EngineObjectAABB) {
+    public draw(indices: Uint16Array) {
         this.webgl.drawElements(
             this.webgl.LINES,
-            aabb.indices.length,
+            indices.length,
             this.webgl.UNSIGNED_SHORT,
             0
         );
@@ -26,22 +36,18 @@ export class LineProgram extends Program {
         this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
     }
 
-    public setVariables(engineObject: EngineObject, aabb: EngineObjectAABB) {
-        this.setVertexShaderBuffers(engineObject, aabb);
+    public setVariables(
+        vertices: LineProgramVertices,
+        indices: LineProgramIndices,
+        modelMatrix: mat4
+    ) {
+        this.setVertexShaderBuffers(vertices, indices, modelMatrix);
     }
 
     public useProgram() {
         this.setAttributes();
         super.useProgram();
     }
-
-    private vertexBuffer: WebGLBuffer = null;
-    private indicesBuffer: WebGLBuffer = null;
-
-    private vertexAttributeLocation: number | null = null;
-
-    private transformationLocation: WebGLUniformLocation | null = null;
-    private viewLocation: WebGLUniformLocation | null = null;
 
     private setAttributes() {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
@@ -57,9 +63,9 @@ export class LineProgram extends Program {
     }
 
     private initBuffers() {
-        this.vertexBuffer = this.webgl.createBuffer();
+        this.vertexBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
-        this.indicesBuffer = this.webgl.createBuffer();
+        this.indicesBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
         this.vertexAttributeLocation = this.webgl.getAttribLocation(
             this.program,
@@ -70,11 +76,14 @@ export class LineProgram extends Program {
     }
 
     private matrixInit(perspective: mat4, view: mat4) {
-        this.viewLocation = this.webgl.getUniformLocation(this.program, "view");
+        this.viewLocation = this.webgl.getUniformLocation(
+            this.program,
+            "view"
+        ) as WebGLUniformLocation;
         this.transformationLocation = this.webgl.getUniformLocation(
             this.program,
             "transformation"
-        );
+        ) as WebGLUniformLocation;
         const projectionLocation = this.webgl.getUniformLocation(
             this.program,
             "projection"
@@ -85,13 +94,14 @@ export class LineProgram extends Program {
     }
 
     private setVertexShaderBuffers(
-        engineObject: EngineObject,
-        aabb: EngineObjectAABB
+        vertices: LineProgramVertices,
+        indices: LineProgramIndices,
+        modelMatrix: mat4
     ) {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
         this.webgl.bufferData(
             this.webgl.ARRAY_BUFFER,
-            aabb.vertices,
+            vertices,
             this.webgl.DYNAMIC_DRAW
         );
 
@@ -101,14 +111,14 @@ export class LineProgram extends Program {
         );
         this.webgl.bufferData(
             this.webgl.ELEMENT_ARRAY_BUFFER,
-            aabb.indices,
+            indices,
             this.webgl.DYNAMIC_DRAW
         );
 
         this.webgl.uniformMatrix4fv(
             this.transformationLocation,
             false,
-            engineObject.object.getModelMatrix()
+            modelMatrix
         );
     }
 }

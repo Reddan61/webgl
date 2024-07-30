@@ -6,14 +6,34 @@ export class Camera {
         this.rotation = new Rotation();
         this.position = position;
         this.view = mat4.create();
-        
+
         this.calculateView();
 
         this.subscribeEvents();
     }
 
+    public createProjection(aspect: number) {
+        this.projection = mat4.create();
+
+        mat4.perspective(
+            this.projection,
+            glMatrix.toRadian(45),
+            aspect,
+            0.1,
+            1000.0
+        );
+    }
+
     public getView() {
         return this.view;
+    }
+
+    public getPosition() {
+        return this.position;
+    }
+
+    public getProjection() {
+        return this.projection;
     }
 
     public update(delta: number) {
@@ -25,36 +45,43 @@ export class Camera {
     private mouseSens = 0.1;
     private position: vec3 = null;
     private view: mat4 = null;
+    private projection: mat4 = null;
     private rotation: Rotation = null;
-    private keys: Record<KeyboardEvent['code'], boolean> = {};
+    private keys: Record<KeyboardEvent["code"], boolean> = {};
     private isMouseDown = false;
     private lastMouseX = 0;
     private lastMouseY = 0;
 
     private calculateView() {
         const target = vec3.create();
-		vec3.add(target, this.position, this.rotation.getFront());
+        vec3.add(target, this.position, this.rotation.getFront());
 
-		mat4.lookAt(this.view, this.position,  target, this.rotation.getUp());
+        mat4.lookAt(this.view, this.position, target, this.rotation.getUp());
     }
 
     private subscribeEvents() {
+        window.oncontextmenu = () => false;
         document.addEventListener("keydown", (e) => {
             this.keys[e.code] = true;
-        })
+        });
 
         document.addEventListener("keyup", (e) => {
             this.keys[e.code] = false;
-        })
+        });
 
         document.addEventListener("mousedown", (e) => {
-            this.isMouseDown = true;
-            this.lastMouseX = e.clientX;
-            this.lastMouseY = e.clientY;
-        })
+            const isRightClick = e.button === 2;
+
+            if (isRightClick) {
+                e.preventDefault();
+                this.isMouseDown = true;
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            }
+        });
         document.addEventListener("mouseup", (e) => {
             this.isMouseDown = false;
-        })
+        });
 
         document.addEventListener("mousemove", (e) => {
             if (!this.isMouseDown) return;
@@ -64,13 +91,13 @@ export class Camera {
 
             this.rotation.rotate(
                 this.rotation.getXAngle() + deltaY,
-                this.rotation.getYAngle() + deltaX,
+                this.rotation.getYAngle() + deltaX
             );
             this.calculateView();
-            
+
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
-        })
+        });
     }
 
     private manageKeys(delta: number) {

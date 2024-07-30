@@ -1,10 +1,11 @@
-import { glMatrix, mat4 } from "gl-matrix";
+import { glMatrix, mat4, vec4 } from "gl-matrix";
 
 import { Camera } from "./Camera";
 import { Object } from "./Object";
 
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
+import { Editor } from "./Editor";
 
 export interface EngineObjectGeometry {
     vertices: Float32Array;
@@ -19,7 +20,8 @@ export interface EngineObjectAABB {
 }
 
 export interface EngineObjectMaterials {
-    baseTexture: WebGLTexture;
+    colorFactor: vec4;
+    baseTexture: WebGLTexture | null;
 }
 interface EngineObjectContent {
     geometry: EngineObjectGeometry;
@@ -33,6 +35,23 @@ export interface EngineObject {
 }
 
 export class Engine {
+    private canvas: HTMLCanvasElement;
+    private webgl: WebGLRenderingContext;
+    private triangleProgram: TriangleProgram;
+    private lineProgram: LineProgram;
+
+    private currentfps = 0;
+    private fpsToDraw = 0;
+    private lastFpsUpdate = 0;
+    private lastTime = 0;
+
+    private objects: EngineObject[] = [];
+    private camera: Camera;
+    private editor: Editor;
+
+    private showAABB = false;
+    private showRays = true;
+
     constructor(canvasId: string, camera: Camera) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
 
@@ -50,26 +69,23 @@ export class Engine {
         }
 
         this.webgl = gl;
+        camera.createProjection(this.canvas.width / this.canvas.height);
         this.camera = camera;
 
-        const projection = new Float32Array(16);
-
-        mat4.perspective(
-            projection,
-            glMatrix.toRadian(45),
-            this.canvas.width / this.canvas.height,
-            0.1,
-            1000.0
+        this.editor = new Editor(
+            this.canvas,
+            this.camera,
+            this.objects.map((object) => object.object)
         );
 
         this.triangleProgram = new TriangleProgram(
             this.webgl,
-            projection,
+            this.camera.getProjection(),
             camera.getView()
         );
         this.lineProgram = new LineProgram(
             this.webgl,
-            projection,
+            this.camera.getProjection(),
             camera.getView()
         );
 
@@ -102,7 +118,7 @@ export class Engine {
                     textureCoords,
                     vertices: { data: vertexData, max, min },
                 },
-                materials,
+                materials: { baseTexture, colorFactor },
             }) => {
                 content.push({
                     geometry: {
@@ -144,10 +160,18 @@ export class Engine {
                         ]),
                     },
                     materials: {
-                        baseTexture: this.createObjectTexture(
-                            materials.baseTexture,
-                            object.isFlipYTexture()
+                        colorFactor: vec4.fromValues(
+                            colorFactor[0],
+                            colorFactor[1],
+                            colorFactor[2],
+                            colorFactor[3]
                         ),
+                        baseTexture: baseTexture
+                            ? this.createObjectTexture(
+                                  baseTexture,
+                                  object.isFlipYTexture()
+                              )
+                            : null,
                     },
                 });
             }
@@ -175,10 +199,7 @@ export class Engine {
 
         this.update(delta);
 
-        this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
-        this.webgl.clear(
-            this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT
-        );
+        this.clear();
 
         this.triangleProgram.useProgram();
         this.triangleProgram.updateView(this.camera.getView());
@@ -191,56 +212,77 @@ export class Engine {
             }
 
             engineObject.content.forEach(({ geometry, materials }) => {
+                const useTexture = Boolean(materials.baseTexture);
+
                 this.triangleProgram.setVariables(
                     engineObject,
                     geometry,
-                    materials
+                    materials,
+                    useTexture
                 );
                 this.triangleProgram.draw(geometry);
             });
         });
 
-        if (this.showAABB) {
+        if (this.showAABB || this.showRays) {
             this.lineProgram.useProgram();
             this.lineProgram.updateView(this.camera.getView());
+        }
 
+        if (this.showAABB) {
             this.objects.forEach((engineObject) => {
+                const modelMatrix = engineObject.object.getModelMatrix();
+
                 engineObject.content.forEach(({ aabb }) => {
-                    this.lineProgram.setVariables(engineObject, aabb);
-                    this.lineProgram.draw(aabb);
+                    this.lineProgram.setVariables(
+                        aabb.vertices,
+                        aabb.indices,
+                        modelMatrix
+                    );
+                    this.lineProgram.draw(aabb.indices);
                 });
             });
         }
 
-        document.getElementById("fps").innerHTML = `${this.fpsToDraw} fps`;
+        if (this.showRays) {
+            const lines = this.editor.getLines();
+
+            lines.forEach(({ indices, vertices }) => {
+                this.lineProgram.setVariables(
+                    vertices,
+                    indices,
+                    this.editor.getModelMatrix()
+                );
+
+                this.lineProgram.draw(indices);
+            });
+        }
+
+        const fpsElement = document.getElementById("fps");
+
+        if (fpsElement) {
+            fpsElement.innerHTML = `${this.fpsToDraw} fps`;
+        }
 
         requestAnimationFrame(this.run);
     };
-
-    // ---------private---------
-
-    private canvas: HTMLCanvasElement | null = null;
-    private webgl: WebGLRenderingContext | null = null;
-    private triangleProgram: TriangleProgram = null;
-    private lineProgram: LineProgram = null;
-
-    private currentfps = 0;
-    private fpsToDraw = 0;
-    private lastFpsUpdate = 0;
-    private lastTime = 0;
-
-    private objects: EngineObject[] = [];
-    private camera: Camera = null;
-
-    private showAABB = false;
 
     private normalizeCanvas() {
         this.canvas.width = document.body.clientWidth;
         this.canvas.height = document.body.clientHeight;
     }
 
+    private clear() {
+        // this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
+        this.webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+        this.webgl.clear(
+            this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT
+        );
+    }
+
     private createObjectTexture(image: HTMLImageElement, flipY: boolean) {
-        const texture = this.webgl.createTexture();
+        const texture = this.webgl.createTexture() as WebGLTexture;
+
         this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture);
         this.webgl.pixelStorei(this.webgl.UNPACK_FLIP_Y_WEBGL, flipY);
         this.webgl.texParameteri(

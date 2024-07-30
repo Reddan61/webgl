@@ -9,6 +9,21 @@ import {
 } from "../Engine";
 
 export class TriangleProgram extends Program {
+    private vertexBuffer: WebGLBuffer;
+    private textureCoordsBuffer: WebGLBuffer;
+    private normalsBuffer: WebGLBuffer;
+    private indicesBuffer: WebGLBuffer;
+
+    private transformationLocation: WebGLUniformLocation;
+    private normalMatLocation: WebGLUniformLocation;
+    private viewLocation: WebGLUniformLocation;
+    private colorFactorLocation: WebGLUniformLocation;
+    private useTextureLocation: WebGLUniformLocation;
+
+    private vertexAttributeLocation: number;
+    private normalsAttributeLocation: number;
+    private vertexTextureLocation: number;
+
     constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
@@ -20,9 +35,15 @@ export class TriangleProgram extends Program {
     public setVariables(
         engineObject: EngineObject,
         geometry: EngineObjectGeometry,
-        materials: EngineObjectMaterials
+        materials: EngineObjectMaterials,
+        useTexture: boolean
     ) {
-        this.setVertexShaderBuffers(engineObject, geometry, materials);
+        this.setVertexShaderBuffers(
+            engineObject,
+            geometry,
+            materials,
+            useTexture
+        );
     }
 
     public draw(geometry: EngineObjectGeometry) {
@@ -42,19 +63,6 @@ export class TriangleProgram extends Program {
         this.setAttributes();
         super.useProgram();
     }
-
-    private vertexBuffer: WebGLBuffer = null;
-    private textureCoordsBuffer: WebGLBuffer = null;
-    private normalsBuffer: WebGLBuffer = null;
-    private indicesBuffer: WebGLBuffer = null;
-
-    private transformationLocation: WebGLUniformLocation | null = null;
-    private normalMatLocation: WebGLUniformLocation | null = null;
-    private viewLocation: WebGLUniformLocation | null = null;
-
-    private vertexAttributeLocation: number | null = null;
-    private normalsAttributeLocation: number | null = null;
-    private vertexTextureLocation: number | null = null;
 
     private setAttributes() {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
@@ -94,13 +102,13 @@ export class TriangleProgram extends Program {
     }
 
     private initBuffers() {
-        this.vertexBuffer = this.webgl.createBuffer();
+        this.vertexBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
-        this.textureCoordsBuffer = this.webgl.createBuffer();
+        this.textureCoordsBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
-        this.normalsBuffer = this.webgl.createBuffer();
+        this.normalsBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
-        this.indicesBuffer = this.webgl.createBuffer();
+        this.indicesBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
         this.vertexAttributeLocation = this.webgl.getAttribLocation(
             this.program,
@@ -119,15 +127,27 @@ export class TriangleProgram extends Program {
     }
 
     private matrixInit(perspective: mat4, view: mat4) {
-        this.viewLocation = this.webgl.getUniformLocation(this.program, "view");
+        this.viewLocation = this.webgl.getUniformLocation(
+            this.program,
+            "view"
+        ) as WebGLUniformLocation;
         this.transformationLocation = this.webgl.getUniformLocation(
             this.program,
             "transformation"
-        );
+        ) as WebGLUniformLocation;
         this.normalMatLocation = this.webgl.getUniformLocation(
             this.program,
             "normalMat"
-        );
+        ) as WebGLUniformLocation;
+        this.useTextureLocation = this.webgl.getUniformLocation(
+            this.program,
+            "useTexture"
+        ) as WebGLUniformLocation;
+        this.colorFactorLocation = this.webgl.getUniformLocation(
+            this.program,
+            "colorFactor"
+        ) as WebGLUniformLocation;
+
         const projectionLocation = this.webgl.getUniformLocation(
             this.program,
             "projection"
@@ -140,7 +160,8 @@ export class TriangleProgram extends Program {
     private setVertexShaderBuffers(
         engineObject: EngineObject,
         geometry: EngineObjectGeometry,
-        materials: EngineObjectMaterials
+        materials: EngineObjectMaterials,
+        useTexture: boolean
     ) {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
         this.webgl.bufferData(
@@ -186,6 +207,8 @@ export class TriangleProgram extends Program {
             false,
             engineObject.object.getNormalMatrix()
         );
+        this.webgl.uniform1i(this.useTextureLocation, Number(useTexture));
+        this.webgl.uniform4fv(this.colorFactorLocation, materials.colorFactor);
 
         this.webgl.bindTexture(this.webgl.TEXTURE_2D, materials.baseTexture);
         this.webgl.activeTexture(this.webgl.TEXTURE0);

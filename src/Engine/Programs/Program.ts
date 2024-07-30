@@ -1,17 +1,18 @@
 export class Program {
+    protected webgl: WebGLRenderingContext;
+    protected program: WebGLProgram;
+
     constructor(webgl: WebGLRenderingContext) {
         this.webgl = webgl;
     }
-
-    protected webgl: WebGLRenderingContext | null = null;
-    protected program: WebGLProgram | null = null;
 
     protected useProgram() {
         this.webgl.useProgram(this.program);
     }
 
     protected Init(vertexShader: string, fragmentShader: string) {
-        this.program = this.webgl.createProgram();
+        this.program = this.webgl.createProgram() as WebGLProgram;
+
         const vertex = this.shaderInit(vertexShader, this.webgl.VERTEX_SHADER);
         const fragment = this.shaderInit(
             fragmentShader,
@@ -36,7 +37,7 @@ export class Program {
         source: string,
         mode: WebGLRenderingContextBase["FRAGMENT_SHADER" | "VERTEX_SHADER"]
     ): WebGLShader {
-        const shader = this.webgl.createShader(mode);
+        const shader = this.webgl.createShader(mode) as WebGLShader;
 
         this.webgl.shaderSource(shader, source);
 

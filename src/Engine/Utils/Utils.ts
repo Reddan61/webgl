@@ -1,5 +1,5 @@
 import { parseObj, ParseOBJResult } from "./OBJ";
-import { GLTFParsedResult, parseGLTF } from "./GLTF";
+import { parseGLTF, ParsedGLTF } from "./GLTF";
 
 export const loadImage = async (url: string): Promise<HTMLImageElement> => {
     return new Promise((resolve) => {
@@ -21,7 +21,7 @@ export const loadObj = async (url: string): Promise<ParseOBJResult> => {
     });
 };
 
-export const loadGLTF = (url: string): Promise<GLTFParsedResult[]> => {
+export const loadGLTF = (url: string): Promise<ParsedGLTF> => {
     return new Promise((resolve) => {
         fetch(url)
             .then((res) => res.json())

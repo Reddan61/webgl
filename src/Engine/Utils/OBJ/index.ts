@@ -50,7 +50,7 @@ export const parseObj = (text: string): ParseOBJResult => {
                         vertex[0],
                         vertex[0]
                     );
-                } else {
+                } else if (verticesMin && verticesMax) {
                     vec3.min(verticesMin, verticesMin, temp);
                     vec3.max(verticesMax, verticesMax, temp);
                 }
@@ -71,7 +71,7 @@ export const parseObj = (text: string): ParseOBJResult => {
                 parts.slice(1).forEach((part) => {
                     const [vIndex, vtIndex, vnIndex] = part
                         .split("/")
-                        .map((idx) => (idx ? parseInt(idx) - 1 : undefined));
+                        .map((idx) => parseInt(idx) - 1);
 
                     tempIndices.push({
                         verticeIndex: vIndex,
@@ -109,8 +109,8 @@ export const parseObj = (text: string): ParseOBJResult => {
     return {
         vertices: {
             data: finalVertices,
-            max: Array.from(verticesMax),
-            min: Array.from(verticesMin),
+            max: Array.from(verticesMax ?? []),
+            min: Array.from(verticesMin ?? []),
         },
         indices: finalIndices,
         textureCoords: finalTextureCoords,

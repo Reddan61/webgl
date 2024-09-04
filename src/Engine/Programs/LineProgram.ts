@@ -1,4 +1,4 @@
-import { mat4 } from "gl-matrix";
+import { mat4, vec4 } from "gl-matrix";
 import { Program } from "./Program";
 import { vertexShader } from "../shaders/lines/vertex";
 import { fragmentShader } from "../shaders/lines/fragment";
@@ -14,6 +14,7 @@ export class LineProgram extends Program {
 
     private transformationLocation: WebGLUniformLocation;
     private viewLocation: WebGLUniformLocation;
+    private colorLocation: WebGLUniformLocation;
 
     constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
@@ -39,9 +40,10 @@ export class LineProgram extends Program {
     public setVariables(
         vertices: LineProgramVertices,
         indices: LineProgramIndices,
-        modelMatrix: mat4
+        modelMatrix: mat4,
+        color: vec4
     ) {
-        this.setVertexShaderBuffers(vertices, indices, modelMatrix);
+        this.setVertexShaderBuffers(vertices, indices, modelMatrix, color);
     }
 
     public useProgram() {
@@ -88,6 +90,10 @@ export class LineProgram extends Program {
             this.program,
             "projection"
         );
+        this.colorLocation = this.webgl.getUniformLocation(
+            this.program,
+            "color"
+        ) as WebGLUniformLocation;
 
         this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
         this.webgl.uniformMatrix4fv(projectionLocation, false, perspective);
@@ -96,7 +102,8 @@ export class LineProgram extends Program {
     private setVertexShaderBuffers(
         vertices: LineProgramVertices,
         indices: LineProgramIndices,
-        modelMatrix: mat4
+        modelMatrix: mat4,
+        color: vec4
     ) {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
         this.webgl.bufferData(
@@ -120,5 +127,7 @@ export class LineProgram extends Program {
             false,
             modelMatrix
         );
+
+        this.webgl.uniform4fv(this.colorLocation, color);
     }
 }

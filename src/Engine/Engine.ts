@@ -1,11 +1,12 @@
-import { glMatrix, mat4, vec4 } from "gl-matrix";
+import { mat4, vec3, vec4 } from "gl-matrix";
 
+import { Rays } from "./Rays";
 import { Camera } from "./Camera";
 import { Object } from "./Object";
 
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
-import { Editor } from "./Editor";
+import { ObjectSelector } from "./ObjectSelector";
 
 export interface EngineObjectGeometry {
     vertices: Float32Array;
@@ -47,7 +48,7 @@ export class Engine {
 
     private objects: EngineObject[] = [];
     private camera: Camera;
-    private editor: Editor;
+    private objectSelector: ObjectSelector;
 
     private showAABB = false;
     private showRays = true;
@@ -72,11 +73,7 @@ export class Engine {
         camera.createProjection(this.canvas.width / this.canvas.height);
         this.camera = camera;
 
-        this.editor = new Editor(
-            this.canvas,
-            this.camera,
-            this.objects.map((object) => object.object)
-        );
+        this.objectSelector = new ObjectSelector(this.canvas, this.camera);
 
         this.triangleProgram = new TriangleProgram(
             this.webgl,
@@ -96,6 +93,7 @@ export class Engine {
         this.webgl.enable(this.webgl.DEPTH_TEST);
         this.webgl.depthFunc(this.webgl.LESS);
         this.enableCullFace();
+        this.subscribe();
     }
 
     public update(delta: number) {
@@ -230,14 +228,19 @@ export class Engine {
         }
 
         if (this.showAABB) {
+            const selectedObject = this.objectSelector.getSelected();
+
             this.objects.forEach((engineObject) => {
                 const modelMatrix = engineObject.object.getModelMatrix();
+                const isSelected =
+                    selectedObject?.object === engineObject.object;
 
                 engineObject.content.forEach(({ aabb }) => {
                     this.lineProgram.setVariables(
                         aabb.vertices,
                         aabb.indices,
-                        modelMatrix
+                        modelMatrix,
+                        isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
                     );
                     this.lineProgram.draw(aabb.indices);
                 });
@@ -245,16 +248,20 @@ export class Engine {
         }
 
         if (this.showRays) {
-            const lines = this.editor.getLines();
+            const rays = this.objectSelector.getRays();
+            const modelMatrix = mat4.create();
+            mat4.identity(modelMatrix);
 
-            lines.forEach(({ indices, vertices }) => {
+            rays.forEach((ray) => {
+                const lineToDraw = ray.getLine();
                 this.lineProgram.setVariables(
-                    vertices,
-                    indices,
-                    this.editor.getModelMatrix()
+                    lineToDraw.vertices,
+                    lineToDraw.indices,
+                    modelMatrix,
+                    [0.0, 0.0, 1.0, 1.0]
                 );
 
-                this.lineProgram.draw(indices);
+                this.lineProgram.draw(lineToDraw.indices);
             });
         }
 
@@ -327,5 +334,77 @@ export class Engine {
 
     private disableCullFace() {
         this.webgl.disable(this.webgl.CULL_FACE);
+    }
+
+    private isMouseDown = false;
+
+    private subscribe() {
+        this.canvas.addEventListener("mousedown", (e) => {
+            const isLeftClick = e.button === 0;
+
+            if (isLeftClick) {
+                this.isMouseDown = true;
+                this.objectSelector.select(e.clientX, e.clientY, this.objects);
+            }
+        });
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            if (!this.isMouseDown) return;
+
+            const selected = this.objectSelector.getSelected();
+
+            if (selected) {
+                const ray = Rays.RayCast(
+                    e.clientX,
+                    e.clientY,
+                    this.canvas,
+                    this.camera
+                );
+
+                const t = vec3.distance(
+                    this.camera.getPosition(),
+                    selected.object.getPosition()
+                );
+
+                const point = vec3.create();
+                vec3.scaleAndAdd(
+                    point,
+                    this.camera.getPosition(),
+                    ray.getDirection(),
+                    t
+                );
+
+                selected.object.setPosition(point);
+            }
+        });
+
+        this.canvas.addEventListener("mouseup", (e) => {
+            this.objectSelector.clear();
+            this.isMouseDown = false;
+        });
+
+        this.canvas.addEventListener("wheel", (e) => {
+            const selected = this.objectSelector.getSelected();
+
+            if (selected) {
+                const ray = Rays.RayCast(
+                    e.clientX,
+                    e.clientY,
+                    this.canvas,
+                    this.camera
+                );
+                const deltaY = e.deltaY * -0.01;
+
+                const point = vec3.create();
+                vec3.scaleAndAdd(
+                    point,
+                    selected.object.getPosition(),
+                    ray.getDirection(),
+                    deltaY
+                );
+
+                selected.object.setPosition(point);
+            }
+        });
     }
 }

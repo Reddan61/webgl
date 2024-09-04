@@ -84,6 +84,30 @@ export class Object {
         this.calculateMatrix();
     }
 
+    public setPositionX(num: number) {
+        this.position[0] = num;
+        this.calculateMatrix();
+    }
+
+    public setPositionY(num: number) {
+        this.position[1] = num;
+        this.calculateMatrix();
+    }
+
+    public setPositionZ(num: number) {
+        this.position[2] = num;
+        this.calculateMatrix();
+    }
+
+    public addPosition(deltaPos: vec3) {
+        vec3.add(this.position, this.position, deltaPos);
+        this.calculateMatrix();
+    }
+
+    public getPosition() {
+        return this.position;
+    }
+
     public setScaling(scaling: vec3) {
         this.scaling = scaling;
         this.calculateMatrix();

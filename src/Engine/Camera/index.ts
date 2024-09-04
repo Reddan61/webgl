@@ -43,10 +43,10 @@ export class Camera {
     private speed = 10.0;
     private arrowSens = 30.0;
     private mouseSens = 0.1;
-    private position: vec3 = null;
-    private view: mat4 = null;
-    private projection: mat4 = null;
-    private rotation: Rotation = null;
+    private position: vec3;
+    private view: mat4;
+    private projection: mat4;
+    private rotation: Rotation;
     private keys: Record<KeyboardEvent["code"], boolean> = {};
     private isMouseDown = false;
     private lastMouseX = 0;

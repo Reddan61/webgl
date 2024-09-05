@@ -1,28 +1,29 @@
-import { mat4 } from "gl-matrix";
+import { mat3, mat4, vec4 } from "gl-matrix";
 import { fragmentShader } from "../shaders/triangles/fragment";
 import { vertexShader } from "../shaders/triangles/vertex";
 import { Program } from "./Program";
-import {
-    EngineObject,
-    EngineObjectGeometry,
-    EngineObjectMaterials,
-} from "../Engine";
 
 export class TriangleProgram extends Program {
     private vertexBuffer: WebGLBuffer;
     private textureCoordsBuffer: WebGLBuffer;
     private normalsBuffer: WebGLBuffer;
     private indicesBuffer: WebGLBuffer;
+    private weightsBuffer: WebGLBuffer;
+    private bonesIndexesBuffer: WebGLBuffer;
 
     private transformationLocation: WebGLUniformLocation;
     private normalMatLocation: WebGLUniformLocation;
     private viewLocation: WebGLUniformLocation;
     private colorFactorLocation: WebGLUniformLocation;
     private useTextureLocation: WebGLUniformLocation;
+    private bonesLocation: WebGLUniformLocation;
+    private useBonesLocation: WebGLUniformLocation;
 
     private vertexAttributeLocation: number;
     private normalsAttributeLocation: number;
     private vertexTextureLocation: number;
+    private weightsAttributeLocation: number;
+    private bonesIndexesAttributeLocation: number;
 
     constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
@@ -33,23 +34,15 @@ export class TriangleProgram extends Program {
     }
 
     public setVariables(
-        engineObject: EngineObject,
-        geometry: EngineObjectGeometry,
-        materials: EngineObjectMaterials,
-        useTexture: boolean
+        parameters: Parameters<typeof this.setVertexShaderBuffers>[0]
     ) {
-        this.setVertexShaderBuffers(
-            engineObject,
-            geometry,
-            materials,
-            useTexture
-        );
+        this.setVertexShaderBuffers(parameters);
     }
 
-    public draw(geometry: EngineObjectGeometry) {
+    public draw(indices: Uint16Array) {
         this.webgl.drawElements(
             this.webgl.TRIANGLES,
-            geometry.indices.length,
+            indices.length,
             this.webgl.UNSIGNED_SHORT,
             0
         );
@@ -71,7 +64,7 @@ export class TriangleProgram extends Program {
             3,
             this.webgl.FLOAT,
             false,
-            3 * Float32Array.BYTES_PER_ELEMENT,
+            0,
             0
         );
         this.webgl.enableVertexAttribArray(this.vertexAttributeLocation);
@@ -82,10 +75,11 @@ export class TriangleProgram extends Program {
             3,
             this.webgl.FLOAT,
             true,
-            3 * Float32Array.BYTES_PER_ELEMENT,
+            0,
             0
         );
         this.webgl.enableVertexAttribArray(this.normalsAttributeLocation);
+
         this.webgl.bindBuffer(
             this.webgl.ARRAY_BUFFER,
             this.textureCoordsBuffer
@@ -95,10 +89,32 @@ export class TriangleProgram extends Program {
             2,
             this.webgl.FLOAT,
             false,
-            2 * Float32Array.BYTES_PER_ELEMENT,
+            0,
             0
         );
         this.webgl.enableVertexAttribArray(this.vertexTextureLocation);
+
+        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.weightsBuffer);
+        this.webgl.vertexAttribPointer(
+            this.weightsAttributeLocation,
+            4,
+            this.webgl.FLOAT,
+            false,
+            0,
+            0
+        );
+        this.webgl.enableVertexAttribArray(this.weightsAttributeLocation);
+
+        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.bonesIndexesBuffer);
+        this.webgl.vertexAttribPointer(
+            this.bonesIndexesAttributeLocation,
+            4,
+            this.webgl.FLOAT,
+            false,
+            0,
+            0
+        );
+        this.webgl.enableVertexAttribArray(this.bonesIndexesAttributeLocation);
     }
 
     private initBuffers() {
@@ -109,6 +125,10 @@ export class TriangleProgram extends Program {
         this.normalsBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
         this.indicesBuffer = this.webgl.createBuffer() as WebGLBuffer;
+
+        this.weightsBuffer = this.webgl.createBuffer() as WebGLBuffer;
+
+        this.bonesIndexesBuffer = this.webgl.createBuffer() as WebGLBuffer;
 
         this.vertexAttributeLocation = this.webgl.getAttribLocation(
             this.program,
@@ -121,6 +141,16 @@ export class TriangleProgram extends Program {
         this.vertexTextureLocation = this.webgl.getAttribLocation(
             this.program,
             "textureCoords"
+        );
+
+        this.weightsAttributeLocation = this.webgl.getAttribLocation(
+            this.program,
+            "weight"
+        );
+
+        this.bonesIndexesAttributeLocation = this.webgl.getAttribLocation(
+            this.program,
+            "boneIndexes"
         );
 
         this.setAttributes();
@@ -153,20 +183,53 @@ export class TriangleProgram extends Program {
             "projection"
         );
 
+        this.bonesLocation = this.webgl.getUniformLocation(
+            this.program,
+            "bones"
+        ) as WebGLUniformLocation;
+
+        this.useBonesLocation = this.webgl.getUniformLocation(
+            this.program,
+            "useBones"
+        ) as WebGLUniformLocation;
+
         this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
         this.webgl.uniformMatrix4fv(projectionLocation, false, perspective);
     }
 
-    private setVertexShaderBuffers(
-        engineObject: EngineObject,
-        geometry: EngineObjectGeometry,
-        materials: EngineObjectMaterials,
-        useTexture: boolean
-    ) {
+    private setVertexShaderBuffers({
+        joints,
+        normals,
+        textureCoords,
+        useBones,
+        useTexture,
+        vertices,
+        weights,
+        indices,
+        modelMatrix,
+        normalMatrix,
+        bonesMatrices,
+        colorFactor,
+        texture,
+    }: {
+        useTexture: boolean;
+        useBones: boolean;
+        indices: Uint16Array;
+        vertices: Float32Array;
+        joints: Float32Array;
+        weights: Float32Array;
+        normals: Float32Array;
+        textureCoords: Float32Array;
+        bonesMatrices: mat4 | null;
+        modelMatrix: mat4;
+        normalMatrix: mat3;
+        texture: WebGLTexture | null;
+        colorFactor: vec4;
+    }) {
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
         this.webgl.bufferData(
             this.webgl.ARRAY_BUFFER,
-            geometry.vertices,
+            vertices,
             this.webgl.DYNAMIC_DRAW
         );
 
@@ -176,14 +239,14 @@ export class TriangleProgram extends Program {
         );
         this.webgl.bufferData(
             this.webgl.ARRAY_BUFFER,
-            geometry.textureCoords,
+            textureCoords,
             this.webgl.DYNAMIC_DRAW
         );
 
         this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
         this.webgl.bufferData(
             this.webgl.ARRAY_BUFFER,
-            geometry.normals,
+            normals,
             this.webgl.DYNAMIC_DRAW
         );
 
@@ -193,24 +256,47 @@ export class TriangleProgram extends Program {
         );
         this.webgl.bufferData(
             this.webgl.ELEMENT_ARRAY_BUFFER,
-            geometry.indices,
+            indices,
+            this.webgl.DYNAMIC_DRAW
+        );
+
+        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.weightsBuffer);
+        this.webgl.bufferData(
+            this.webgl.ARRAY_BUFFER,
+            weights,
+            this.webgl.DYNAMIC_DRAW
+        );
+
+        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.bonesIndexesBuffer);
+        this.webgl.bufferData(
+            this.webgl.ARRAY_BUFFER,
+            joints,
             this.webgl.DYNAMIC_DRAW
         );
 
         this.webgl.uniformMatrix4fv(
             this.transformationLocation,
             false,
-            engineObject.object.getModelMatrix()
+            modelMatrix
         );
         this.webgl.uniformMatrix3fv(
             this.normalMatLocation,
             false,
-            engineObject.object.getNormalMatrix()
+            normalMatrix
         );
-        this.webgl.uniform1i(this.useTextureLocation, Number(useTexture));
-        this.webgl.uniform4fv(this.colorFactorLocation, materials.colorFactor);
 
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, materials.baseTexture);
+        this.webgl.uniformMatrix4fv(
+            this.bonesLocation,
+            false,
+            bonesMatrices ?? mat4.create()
+        );
+
+        this.webgl.uniform1i(this.useBonesLocation, Number(useBones));
+
+        this.webgl.uniform1i(this.useTextureLocation, Number(useTexture));
+        this.webgl.uniform4fv(this.colorFactorLocation, colorFactor);
+
+        this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture);
         this.webgl.activeTexture(this.webgl.TEXTURE0);
     }
 }

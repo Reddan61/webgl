@@ -1,6 +1,19 @@
 import { vec4 } from "gl-matrix";
 import { loadImage } from "../Utils";
-import { ACCESSOR_TYPE, COMPONENT_TYPE, GLTF, GLTFScene } from "./types";
+import {
+    ACCESSOR_TYPE,
+    ANIMATION_INTERPOLATION,
+    COMPONENT_TYPE,
+    GLTF,
+    GLTFAnimationChannel,
+    GLTFAnimationSampler,
+} from "./types";
+import { Bone } from "../../Bones/Bones";
+import {
+    AnimationChannel,
+    AnimationSampler,
+    BoneAnimation,
+} from "../../Animation/BoneAnimation";
 
 const TYPED_ARRAYS = {
     [COMPONENT_TYPE.BYTE]: Int8Array,
@@ -11,7 +24,7 @@ const TYPED_ARRAYS = {
     [COMPONENT_TYPE.FLOAT]: Float32Array,
 };
 
-const ACCESSOR_LENGTH: Record<ACCESSOR_TYPE, number> = {
+export const ACCESSOR_LENGTH: Record<ACCESSOR_TYPE, number> = {
     [ACCESSOR_TYPE.SCALAR]: 1,
     [ACCESSOR_TYPE.VEC2]: 2,
     [ACCESSOR_TYPE.VEC3]: 3,
@@ -30,6 +43,8 @@ interface ParsedGeometry {
     normals: number[];
     textureCoords: number[];
     indices: number[];
+    weight: number[] | null;
+    joints: number[] | null;
 }
 
 interface ParsedMaterials {
@@ -37,9 +52,19 @@ interface ParsedMaterials {
     baseTexture: HTMLImageElement | null;
 }
 
-export interface GLTFParsedMesh {
+interface MeshSekeleton {
+    bonesIndexes: number[];
+    inverseBindMatrices: number[];
+}
+
+interface GLTFParsedPrimitives {
     geometry: ParsedGeometry;
     materials: ParsedMaterials;
+}
+
+export interface GLTFParsedMesh {
+    primitives: GLTFParsedPrimitives[];
+    skeleton: MeshSekeleton | null;
 }
 
 const readFromBuffer = (
@@ -52,7 +77,8 @@ const readFromBuffer = (
 ) => {
     const result: number[] = [];
     const myTypedArray = TYPED_ARRAYS[componentType];
-    const newByteStride = byteStride || myTypedArray.BYTES_PER_ELEMENT;
+    const newByteStride =
+        byteStride || myTypedArray.BYTES_PER_ELEMENT * ACCESSOR_LENGTH[type];
 
     for (let i = 0; i < count; i++) {
         let offset = byteOffset + newByteStride * i;
@@ -102,6 +128,7 @@ const getAccessorData = (gltf: GLTF, buffers: ArrayBuffer[], index: number) => {
     );
 
     return {
+        type,
         data: bufferData,
         max: max as number[],
         min: min as number[],
@@ -164,17 +191,17 @@ const parseMaterial = (
     return result;
 };
 
-const parseMesh = (
+const parsePrimitives = (
     gltf: GLTF,
     buffers: ArrayBuffer[],
     images: HTMLImageElement[],
     meshIndex: number
-): GLTFParsedMesh[] => {
+): GLTFParsedPrimitives[] => {
     const { meshes } = gltf;
 
     const { primitives } = meshes[meshIndex];
 
-    const result: GLTFParsedMesh[] = [];
+    const result: GLTFParsedPrimitives[] = [];
 
     for (let i = 0; i < primitives.length; i++) {
         const {
@@ -184,7 +211,7 @@ const parseMesh = (
             material,
         } = primitives[i];
 
-        const materialResult: GLTFParsedMesh["materials"] = {
+        const materialResult: GLTFParsedPrimitives["materials"] = {
             colorFactor: [1, 1, 1, 1],
             baseTexture: null,
         };
@@ -196,7 +223,8 @@ const parseMesh = (
         }
 
         if (indicesIndex !== undefined) {
-            const { NORMAL, POSITION, TEXCOORD_0 } = attributes;
+            const { NORMAL, POSITION, TEXCOORD_0, JOINTS_0, WEIGHTS_0 } =
+                attributes;
 
             result.push({
                 geometry: {
@@ -205,6 +233,14 @@ const parseMesh = (
                     textureCoords: getAccessorData(gltf, buffers, TEXCOORD_0)
                         .data,
                     vertices: getAccessorData(gltf, buffers, POSITION),
+                    joints:
+                        JOINTS_0 !== undefined
+                            ? getAccessorData(gltf, buffers, JOINTS_0).data
+                            : null,
+                    weight:
+                        WEIGHTS_0 !== undefined
+                            ? getAccessorData(gltf, buffers, WEIGHTS_0).data
+                            : null,
                 },
                 materials: materialResult,
             });
@@ -214,62 +250,170 @@ const parseMesh = (
     return result;
 };
 
-const parseNodes = (
+const parseSkins = (
     gltf: GLTF,
-    buffers: ArrayBuffer[],
-    images: HTMLImageElement[],
-    nodeIndex: number
-): GLTFParsedMesh[] | null => {
-    const { nodes } = gltf;
-    const { mesh, children } = nodes[nodeIndex];
+    meshes: GLTFParsedMesh[],
+    nodes: Bone[],
+    buffers: ArrayBuffer[]
+) => {
+    const { skins } = gltf;
 
-    if (mesh !== undefined) {
-        return parseMesh(gltf, buffers, images, mesh);
-    }
-
-    if (children) {
-        const result: GLTFParsedMesh[] = [];
-
-        for (let i = 0; i < children.length; i++) {
-            const childIndex = children[i];
-            const parsed = parseNodes(gltf, buffers, images, childIndex);
-
-            if (parsed) {
-                result.push(...parsed);
-            }
-        }
-
-        return result;
-    }
-
-    return null;
-};
-
-const parseScene = (
-    gltf: GLTF,
-    buffers: ArrayBuffer[],
-    images: HTMLImageElement[],
-    { nodes }: GLTFScene
-): GLTFParsedMesh[] => {
-    if (!nodes) return [];
-
-    const result: GLTFParsedMesh[] = [];
+    if (!skins) return null;
 
     for (let i = 0; i < nodes.length; i++) {
-        const nodeIndex = nodes[i];
-        const parsed = parseNodes(gltf, buffers, images, nodeIndex);
-        if (parsed) {
-            result.push(...parsed);
+        const node = nodes[i];
+        const skinIndex = node.getSkin();
+        const meshIndex = node.getMesh();
+
+        if (skinIndex !== null && meshIndex !== null) {
+            const { inverseBindMatrices, joints } = skins[skinIndex];
+
+            const skeleton: MeshSekeleton = {
+                inverseBindMatrices: [],
+                bonesIndexes: [],
+            };
+
+            if (inverseBindMatrices !== undefined) {
+                skeleton.inverseBindMatrices = getAccessorData(
+                    gltf,
+                    buffers,
+                    inverseBindMatrices
+                ).data;
+            }
+
+            skeleton.bonesIndexes = joints;
+            meshes[meshIndex].skeleton = skeleton;
         }
+    }
+};
+
+const parseChannels = (channels: GLTFAnimationChannel[]) => {
+    const parsedChannels: AnimationChannel[] = channels.map((el) => ({
+        sampler: el.sampler,
+        target: {
+            bone: el.target.node ?? 0,
+            path: el.target.path,
+        },
+    }));
+
+    return parsedChannels;
+};
+
+const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[]) => {
+    const { animations } = gltf;
+
+    if (!animations) return null;
+
+    const bonesAnimations: BoneAnimation[] = [];
+
+    for (let i = 0; i < animations.length; i++) {
+        const { samplers, channels } = animations[i];
+        const samplersParsed = parseSamplers(gltf, buffers, samplers);
+        const channelsParsed = parseChannels(channels);
+
+        bonesAnimations.push(new BoneAnimation(samplersParsed, channelsParsed));
+    }
+
+    return bonesAnimations;
+};
+
+const parseSamplers = (
+    gltf: GLTF,
+    buffers: ArrayBuffer[],
+    samplers: GLTFAnimationSampler[]
+) => {
+    const result: AnimationSampler[] = [];
+
+    for (let i = 0; i < samplers.length; i++) {
+        const {
+            input,
+            output,
+            interpolation = ANIMATION_INTERPOLATION.LINEAR,
+        } = samplers[i];
+
+        const inputParsed = getAccessorData(gltf, buffers, input);
+        const outputParsed = getAccessorData(gltf, buffers, output);
+
+        result.push({
+            input: {
+                data: inputParsed.data,
+                max: inputParsed.max,
+                min: inputParsed.min,
+            },
+            output: {
+                data: outputParsed.data,
+                max: outputParsed.max,
+                min: outputParsed.min,
+            },
+            interpolation,
+        });
     }
 
     return result;
 };
 
-export type ParsedGLTF = GLTFParsedMesh[];
+export type ParsedGLTF = {
+    meshes: GLTFParsedMesh[][];
+    bonesAnimations: BoneAnimation[] | null;
+    bones: Bone[];
+};
+
+const parseNode = (
+    gltf: GLTF,
+    result: Bone[],
+    index: number,
+    parentIndex: number | null = null
+) => {
+    const { nodes } = gltf;
+    const node = nodes[index];
+    const parent = parentIndex !== null ? result[parentIndex] : null;
+
+    const bone = new Bone(node, parent);
+    result[index] = bone;
+
+    const meshesIndexes: number[] = [];
+    const meshIndex = bone.getMesh();
+
+    if (meshIndex !== null) {
+        meshesIndexes.push(meshIndex);
+    }
+
+    const children = bone.getChildren();
+
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+
+        meshesIndexes.push(...parseNode(gltf, result, child, index));
+    }
+
+    return meshesIndexes;
+};
+
+const parseNodes = (gltf: GLTF) => {
+    const { scenes } = gltf;
+    const result: Bone[] = [];
+    const meshesIndexes: number[][] = [];
+
+    for (let i = 0; i < scenes.length; i++) {
+        const { nodes = [] } = scenes[i];
+
+        for (let j = 0; j < nodes.length; j++) {
+            const indexes: number[] = [];
+            const entry = nodes[j];
+            indexes.push(...parseNode(gltf, result, entry));
+            result[entry].update(result);
+            meshesIndexes.push(indexes);
+        }
+    }
+
+    return {
+        bones: result,
+        meshesIndexes,
+    };
+};
 
 export const parseGLTF = async (gltf: GLTF): Promise<ParsedGLTF> => {
-    const { buffers, scene, scenes, images } = gltf;
+    const { buffers, images } = gltf;
 
     const bufferPromises: Promise<ArrayBuffer>[] = [];
     const texturePromises: Promise<HTMLImageElement>[] = [];
@@ -287,8 +431,27 @@ export const parseGLTF = async (gltf: GLTF): Promise<ParsedGLTF> => {
     const bufferData = await Promise.all(bufferPromises);
     const textures = await Promise.all(texturePromises);
 
-    const entry = scenes[scene];
-    const result = parseScene(gltf, bufferData, textures, entry);
+    const meshes = gltf.meshes.map((_, index) => {
+        const parsedMesh: GLTFParsedMesh = {
+            primitives: parsePrimitives(gltf, bufferData, textures, index),
+            skeleton: null,
+        };
 
-    return result;
+        return parsedMesh;
+    });
+
+    const { bones, meshesIndexes } = parseNodes(gltf);
+
+    parseSkins(gltf, meshes, bones, bufferData);
+    const bonesAnimations = parseAnimations(gltf, bufferData);
+
+    return {
+        bones,
+        meshes: meshesIndexes.map((el) => {
+            return el.map((meshIndex) => {
+                return meshes[meshIndex];
+            });
+        }),
+        bonesAnimations,
+    };
 };

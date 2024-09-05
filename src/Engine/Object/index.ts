@@ -1,33 +1,17 @@
-import { mat3, mat4, vec3, vec4 } from "gl-matrix";
+import { mat3, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "../Rotation";
-
-interface Geometry {
-    vertices: {
-        data: number[];
-        max: number[];
-        min: number[];
-    };
-    indices: number[];
-    textureCoords: number[];
-    normals: number[];
-}
-
-interface Materials {
-    colorFactor: vec4;
-    baseTexture: HTMLImageElement | null;
-}
-
-export type ObjectContent = {
-    geometry: Geometry;
-    materials: Materials;
-}[];
+import { Mesh } from "../Mesh";
+import { BoneAnimation } from "../Animation/BoneAnimation";
+import { Bone } from "../Bones/Bones";
+import { AABB } from "../AABB";
 
 export class Object {
     private position: vec3;
-    private content: ObjectContent;
+    private meshes: Mesh[];
     private singleFace = false;
     private flipYTexture = true;
     private scaling: vec3;
+    private aabb: AABB;
 
     private translation: mat4 = mat4.create();
     private scalingMatrix: mat4 = mat4.create();
@@ -37,13 +21,25 @@ export class Object {
 
     private rotation: Rotation;
 
-    constructor(content: ObjectContent, position: vec3, scaling: vec3) {
+    private animations: BoneAnimation[] = [];
+    private bones: Bone[] = [];
+
+    constructor(
+        meshes: Mesh[],
+        position: vec3,
+        scaling: vec3,
+        bones: Bone[] = [],
+        animations: BoneAnimation[] = []
+    ) {
         this.position = position;
-        this.content = content;
+        this.meshes = meshes;
         this.rotation = new Rotation();
         this.scaling = scaling;
+        this.animations = animations;
+        this.bones = bones;
 
         this.calculateMatrix();
+        this.createAABB();
     }
 
     public getModelMatrix() {
@@ -54,8 +50,8 @@ export class Object {
         return this.normalMatrix;
     }
 
-    public getContent() {
-        return this.content;
+    public getMeshes() {
+        return this.meshes;
     }
 
     public isSingleFace() {
@@ -64,6 +60,10 @@ export class Object {
 
     public isFlipYTexture() {
         return this.flipYTexture;
+    }
+
+    public getAABB() {
+        return this.aabb;
     }
 
     public setFlipYTexture(bool: boolean) {
@@ -113,7 +113,10 @@ export class Object {
         this.calculateMatrix();
     }
 
-    public update() {}
+    public update() {
+        this.animations.forEach((animation) => animation.update(this.bones));
+        this.meshes.forEach((mesh) => mesh.update());
+    }
 
     private calculateMatrix() {
         mat4.fromScaling(this.scalingMatrix, this.scaling);
@@ -126,5 +129,33 @@ export class Object {
             this.rotation.getRotation()
         );
         mat3.normalFromMat4(this.normalMatrix, this.modelMatrix);
+    }
+
+    private createAABB() {
+        let max = null as vec3 | null;
+        let min = null as vec3 | null;
+
+        this.meshes.forEach((mesh) => {
+            const aabb = mesh.getAABB();
+            const maxMin = aabb.getMaxMin();
+
+            if (max && min) {
+                vec3.max(max, max, maxMin.max);
+                vec3.min(min, min, maxMin.min);
+            } else {
+                max = vec3.fromValues(
+                    maxMin.max[0],
+                    maxMin.max[1],
+                    maxMin.max[2]
+                );
+                min = vec3.fromValues(
+                    maxMin.min[0],
+                    maxMin.min[1],
+                    maxMin.min[2]
+                );
+            }
+        });
+
+        this.aabb = new AABB(max as number[], min as number[]);
     }
 }

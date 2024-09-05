@@ -50,9 +50,9 @@ interface GLTFMeshPrimitivesAttributes {
     // COLOR_n: number
     COLOR_0: number;
     // JOINTS_n: number
-    JOINTS_0: number;
+    JOINTS_0?: number;
     // WEIGHTS_n: number
-    WEIGHTS_0: number;
+    WEIGHTS_0?: number;
 }
 
 interface GLTFMeshPrimitives {
@@ -187,6 +187,59 @@ interface GLTFMaterial {
     extras?: unknown;
 }
 
+export enum ANIMATION_PATH {
+    TRANSLATION = "translation",
+    ROTATION = "rotation",
+    SCALE = "scale",
+    WEIGHTS = "weights",
+}
+
+export enum ANIMATION_INTERPOLATION {
+    LINEAR = "LINEAR",
+    STEP = "STEP",
+    CUBICSPLINE = "CUBICSPLINE",
+}
+
+interface GLTFAnimationTarget {
+    node?: number;
+    path: ANIMATION_PATH;
+    extensions?: unknown;
+    extras?: unknown;
+}
+
+export interface GLTFAnimationChannel {
+    sampler: number;
+    target: GLTFAnimationTarget;
+    extensions?: unknown;
+    extras?: unknown;
+}
+
+export interface GLTFAnimationSampler {
+    input: number;
+    output: number;
+    // default ANIMATION_INTERPOLATION.LINEAR
+    interpolation?: ANIMATION_INTERPOLATION;
+    extensions?: unknown;
+    extras?: unknown;
+}
+
+interface GLTFAnimation {
+    channels: GLTFAnimationChannel[];
+    samplers: GLTFAnimationSampler[];
+    name?: string;
+    extensions?: unknown;
+    extras?: unknown;
+}
+
+interface GLTFSkin {
+    joints: number[];
+    inverseBindMatrices?: number;
+    skeleton?: number;
+    name?: string;
+    extensions?: unknown;
+    extras?: unknown;
+}
+
 export interface GLTF {
     scene: number;
     scenes: GLTFScene[];
@@ -199,4 +252,6 @@ export interface GLTF {
     images?: GLTFImage[];
     samplers: GLTFSampler[];
     materials: GLTFMaterial[];
+    animations?: GLTFAnimation[];
+    skins?: GLTFSkin[];
 }

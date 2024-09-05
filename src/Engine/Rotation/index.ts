@@ -1,4 +1,4 @@
-import { glMatrix, mat4, vec3 } from "gl-matrix";
+import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 
 export class Rotation {
     constructor() {
@@ -59,35 +59,17 @@ export class Rotation {
     }
 
     private xRotate(angle: number) {
-        if (angle >= 89.0) {
-            this.xAngle = 89.0;
-        } else if(angle <= -89.0) {
-            this.xAngle = -89.0;
-        } else {
-            this.xAngle = angle;
-        }
-
-        const radians = glMatrix.toRadian(this.xAngle);
-
-        const identity = mat4.create();
-        mat4.identity(identity);
-
-        mat4.rotate(this.xRotation, identity, radians, [1, 0, 0]);
+        this.xAngle = angle;
     }
-    
+
     private yRotate(angle: number) {
         this.yAngle = angle;
-
-        const radians = glMatrix.toRadian(this.yAngle);
-
-        const identity = mat4.create();
-        mat4.identity(identity);
-        
-        mat4.rotate(this.yRotation, identity, radians, [0, 1, 0]);
     }
 
     private calculateRotation() {
-        mat4.multiply(this.rotation, this.yRotation, this.xRotation);
+        const q = quat.create();
+        quat.fromEuler(q, this.xAngle, this.yAngle, 0);
+        mat4.fromQuat(this.rotation, q);
 
         vec3.transformMat4(this.front, [0, 0, -1], this.rotation);
         vec3.normalize(this.front, this.front);

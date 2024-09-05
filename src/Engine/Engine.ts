@@ -1,4 +1,4 @@
-import { mat4, vec3, vec4 } from "gl-matrix";
+import { mat4, vec3 } from "gl-matrix";
 
 import { Rays } from "./Rays";
 import { Camera } from "./Camera";
@@ -7,33 +7,6 @@ import { Object } from "./Object";
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
 import { ObjectSelector } from "./ObjectSelector";
-
-export interface EngineObjectGeometry {
-    vertices: Float32Array;
-    textureCoords: Float32Array;
-    normals: Float32Array;
-    indices: Uint16Array;
-}
-
-export interface EngineObjectAABB {
-    vertices: Float32Array;
-    indices: Uint16Array;
-}
-
-export interface EngineObjectMaterials {
-    colorFactor: vec4;
-    baseTexture: WebGLTexture | null;
-}
-interface EngineObjectContent {
-    geometry: EngineObjectGeometry;
-    aabb: EngineObjectAABB;
-    materials: EngineObjectMaterials;
-}
-
-export interface EngineObject {
-    content: EngineObjectContent[];
-    object: Object;
-}
 
 export class Engine {
     private canvas: HTMLCanvasElement;
@@ -46,7 +19,7 @@ export class Engine {
     private lastFpsUpdate = 0;
     private lastTime = 0;
 
-    private objects: EngineObject[] = [];
+    private objects: Object[] = [];
     private camera: Camera;
     private objectSelector: ObjectSelector;
 
@@ -98,7 +71,7 @@ export class Engine {
 
     public update(delta: number) {
         this.camera.update(delta);
-        this.objects.forEach((engineObject) => engineObject.object.update());
+        this.objects.forEach((object) => object.update());
     }
 
     public setShowAABB(bool: boolean) {
@@ -106,81 +79,23 @@ export class Engine {
     }
 
     public addObject(object: Object) {
-        const content: EngineObject["content"] = [];
+        object.getMeshes().forEach((mesh) => {
+            const primitives = mesh.getPrimitives();
+            primitives.forEach((prim) => {
+                const material = prim.getMaterial();
 
-        object.getContent().forEach(
-            ({
-                geometry: {
-                    indices,
-                    normals,
-                    textureCoords,
-                    vertices: { data: vertexData, max, min },
-                },
-                materials: { baseTexture, colorFactor },
-            }) => {
-                content.push({
-                    geometry: {
-                        vertices: new Float32Array(vertexData),
-                        normals: new Float32Array(normals),
-                        textureCoords: new Float32Array(textureCoords),
-                        indices: new Uint16Array(indices),
-                    },
-                    aabb: {
-                        indices: new Uint16Array([
-                            0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0,
-                            4, 1, 5, 2, 6, 3, 7,
-                        ]),
-                        vertices: new Float32Array([
-                            min[0],
-                            min[1],
-                            min[2],
-                            max[0],
-                            min[1],
-                            min[2],
-                            max[0],
-                            max[1],
-                            min[2],
-                            min[0],
-                            max[1],
-                            min[2],
-                            min[0],
-                            min[1],
-                            max[2],
-                            max[0],
-                            min[1],
-                            max[2],
-                            max[0],
-                            max[1],
-                            max[2],
-                            min[0],
-                            max[1],
-                            max[2],
-                        ]),
-                    },
-                    materials: {
-                        colorFactor: vec4.fromValues(
-                            colorFactor[0],
-                            colorFactor[1],
-                            colorFactor[2],
-                            colorFactor[3]
-                        ),
-                        baseTexture: baseTexture
-                            ? this.createObjectTexture(
-                                  baseTexture,
-                                  object.isFlipYTexture()
-                              )
-                            : null,
-                    },
-                });
-            }
-        );
+                if (!material.baseImage) return;
 
-        const newObject: EngineObject = {
-            object,
-            content,
-        };
+                const texture = this.createObjectTexture(
+                    material.baseImage,
+                    object.isFlipYTexture()
+                );
 
-        this.objects.push(newObject);
+                prim.setTexture(texture);
+            });
+        });
+
+        this.objects.push(object);
     }
 
     public run = () => {
@@ -202,23 +117,39 @@ export class Engine {
         this.triangleProgram.useProgram();
         this.triangleProgram.updateView(this.camera.getView());
 
-        this.objects.forEach((engineObject) => {
-            if (engineObject.object.isSingleFace()) {
+        this.objects.forEach((object) => {
+            if (object.isSingleFace()) {
                 this.disableCullFace();
             } else {
                 this.enableCullFace();
             }
 
-            engineObject.content.forEach(({ geometry, materials }) => {
-                const useTexture = Boolean(materials.baseTexture);
+            object.getMeshes().forEach((mesh) => {
+                const primitives = mesh.getPrimitives();
+                primitives.forEach((prim) => {
+                    const material = prim.getMaterial();
 
-                this.triangleProgram.setVariables(
-                    engineObject,
-                    geometry,
-                    materials,
-                    useTexture
-                );
-                this.triangleProgram.draw(geometry);
+                    const useTexture = Boolean(material.baseTexture);
+                    const boneMatrices = mesh.getSkeleton()?.matrices;
+                    const useBones = !!boneMatrices;
+
+                    this.triangleProgram.setVariables({
+                        useBones,
+                        useTexture,
+                        bonesMatrices: mesh.getSkeleton()?.matrices ?? null,
+                        colorFactor: material.colorFactor,
+                        texture: material.baseTexture,
+                        indices: prim.getIndices(),
+                        joints: prim.getJoints(),
+                        normals: prim.getNormals(),
+                        textureCoords: prim.getTextureCoords(),
+                        vertices: prim.getVertices(),
+                        weights: prim.getWeights(),
+                        modelMatrix: object.getModelMatrix(),
+                        normalMatrix: object.getNormalMatrix(),
+                    });
+                    this.triangleProgram.draw(prim.getIndices());
+                });
             });
         });
 
@@ -230,20 +161,20 @@ export class Engine {
         if (this.showAABB) {
             const selectedObject = this.objectSelector.getSelected();
 
-            this.objects.forEach((engineObject) => {
-                const modelMatrix = engineObject.object.getModelMatrix();
-                const isSelected =
-                    selectedObject?.object === engineObject.object;
+            this.objects.forEach((object) => {
+                const modelMatrix = object.getModelMatrix();
+                const isSelected = selectedObject?.object === object;
 
-                engineObject.content.forEach(({ aabb }) => {
-                    this.lineProgram.setVariables(
-                        aabb.vertices,
-                        aabb.indices,
-                        modelMatrix,
-                        isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
-                    );
-                    this.lineProgram.draw(aabb.indices);
-                });
+                const aabb = object.getAABB();
+                const aabbIndices = aabb.getIndices();
+
+                this.lineProgram.setVariables(
+                    aabb.getVertices(),
+                    aabbIndices,
+                    modelMatrix,
+                    isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
+                );
+                this.lineProgram.draw(aabbIndices);
             });
         }
 

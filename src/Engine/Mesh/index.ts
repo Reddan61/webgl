@@ -2,6 +2,7 @@ import { mat4, vec3 } from "gl-matrix";
 import { MeshPrimitive } from "../MeshPrimitive";
 import { Bone } from "../Bones/Bones";
 import { AABB } from "../AABB";
+import { PointLight } from "../Light/PointLight";
 
 interface MeshSekeleton {
     matrices: Float32Array;
@@ -15,6 +16,8 @@ export class Mesh {
     private inverseBindMatrices: number[];
     private bones: Bone[] = [];
     private skeleton: MeshSekeleton | null = null;
+
+    private light: PointLight | null = null;
 
     constructor(
         primitives: MeshPrimitive[],
@@ -35,6 +38,14 @@ export class Mesh {
 
     public update() {
         this.calculateBones();
+    }
+
+    public setLight(light: PointLight | null) {
+        this.light = light;
+    }
+
+    public getLight() {
+        return this.light;
     }
 
     public getPrimitives() {

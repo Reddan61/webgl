@@ -2,24 +2,26 @@ import { mat4, vec4 } from "gl-matrix";
 import { Program } from "./Program";
 import { vertexShader } from "../shaders/lines/vertex";
 import { fragmentShader } from "../shaders/lines/fragment";
+import { ArrayBuffer } from "./Buffer/ArrayBuffer";
+import { ElementBuffer } from "./Buffer/ElementBuffer";
+import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
+import { Uniform4fv } from "./Uniform/Uniform4fv";
 
 export type LineProgramVertices = Float32Array;
 export type LineProgramIndices = Uint16Array;
 
 export class LineProgram extends Program {
-    private vertexBuffer: WebGLBuffer;
-    private indicesBuffer: WebGLBuffer;
+    private vertexBuffer: ArrayBuffer;
+    private indicesBuffer: ElementBuffer;
 
-    private vertexAttributeLocation: number;
+    private transformationMatUniform: UniformMatrix4fv;
+    private viewMatUniform: UniformMatrix4fv;
+    private colorUniform: Uniform4fv;
 
-    private transformationLocation: WebGLUniformLocation;
-    private viewLocation: WebGLUniformLocation;
-    private colorLocation: WebGLUniformLocation;
-
-    constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
+    constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
-        this.useProgram();
+        super.useProgram();
         this.initBuffers();
         this.matrixInit(perspective, view);
     }
@@ -34,7 +36,7 @@ export class LineProgram extends Program {
     }
 
     public updateView(view: mat4) {
-        this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
+        this.viewMatUniform.setData(view);
     }
 
     public setVariables(
@@ -47,56 +49,48 @@ export class LineProgram extends Program {
     }
 
     public useProgram() {
-        this.setAttributes();
         super.useProgram();
+        this.setAttributes();
     }
 
     private setAttributes() {
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-        this.webgl.vertexAttribPointer(
-            this.vertexAttributeLocation,
-            3,
-            this.webgl.FLOAT,
-            false,
-            3 * Float32Array.BYTES_PER_ELEMENT,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.vertexAttributeLocation);
+        this.vertexBuffer.setAttributes();
     }
 
     private initBuffers() {
-        this.vertexBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.indicesBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.vertexAttributeLocation = this.webgl.getAttribLocation(
+        this.vertexBuffer = new ArrayBuffer(
+            this.webgl,
             this.program,
-            "vertexPosition"
+            "vertexPosition",
+            3,
+            this.webgl.FLOAT
         );
+        this.indicesBuffer = new ElementBuffer(this.webgl);
 
         this.setAttributes();
     }
 
     private matrixInit(perspective: mat4, view: mat4) {
-        this.viewLocation = this.webgl.getUniformLocation(
+        this.viewMatUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "view"
-        ) as WebGLUniformLocation;
-        this.transformationLocation = this.webgl.getUniformLocation(
+        );
+        this.transformationMatUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "transformation"
-        ) as WebGLUniformLocation;
-        const projectionLocation = this.webgl.getUniformLocation(
+        );
+
+        const projectionMatUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "projection"
         );
-        this.colorLocation = this.webgl.getUniformLocation(
-            this.program,
-            "color"
-        ) as WebGLUniformLocation;
+        this.colorUniform = new Uniform4fv(this.webgl, this.program, "color");
 
-        this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
-        this.webgl.uniformMatrix4fv(projectionLocation, false, perspective);
+        this.viewMatUniform.setData(view);
+        projectionMatUniform.setData(perspective);
     }
 
     private setVertexShaderBuffers(
@@ -105,29 +99,10 @@ export class LineProgram extends Program {
         modelMatrix: mat4,
         color: vec4
     ) {
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            vertices,
-            this.webgl.DYNAMIC_DRAW
-        );
+        this.vertexBuffer.setBufferData(vertices);
+        this.indicesBuffer.setBufferData(indices);
 
-        this.webgl.bindBuffer(
-            this.webgl.ELEMENT_ARRAY_BUFFER,
-            this.indicesBuffer
-        );
-        this.webgl.bufferData(
-            this.webgl.ELEMENT_ARRAY_BUFFER,
-            indices,
-            this.webgl.DYNAMIC_DRAW
-        );
-
-        this.webgl.uniformMatrix4fv(
-            this.transformationLocation,
-            false,
-            modelMatrix
-        );
-
-        this.webgl.uniform4fv(this.colorLocation, color);
+        this.transformationMatUniform.setData(modelMatrix);
+        this.colorUniform.setData(color);
     }
 }

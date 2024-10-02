@@ -1,11 +1,11 @@
-export const vertexShader = `
+export const vertexShader = `#version 300 es
   precision mediump float;
 
-  attribute vec3 vertexPosition;
-  attribute vec2 textureCoords;
-  attribute vec3 normals;
-  attribute vec4 weight;
-  attribute vec4 boneIndexes;
+  in vec3 vertexPosition;
+  in vec2 textureCoords;
+  in vec3 normals;
+  in vec4 weight;
+  in vec4 boneIndexes;
 
   uniform mat3 normalMat;
   uniform mat4 transformation;
@@ -14,8 +14,9 @@ export const vertexShader = `
   uniform mat4 bones[100];
   uniform bool useBones;
 
-  varying vec2 fragTextureCoords;
-  varying vec3 fragNormal;
+  out vec2 fragTextureCoords;
+  out vec3 fragNormal;
+  out vec3 fragPosition;
 
   void main(void) {
     fragTextureCoords = textureCoords;
@@ -29,8 +30,10 @@ export const vertexShader = `
       }
       
       gl_Position = projection * view * transformation * skinned;
+      fragPosition = (transformation * skinned).xyz;
     } else {
       gl_Position = projection * view * transformation * vec4(vertexPosition, 1.0);
+      fragPosition = (transformation * vec4(vertexPosition, 1.0)).xyz;
     }
   }
 `;

@@ -1,11 +1,18 @@
+import { AmbientLight } from "./Engine/Light/AmbientLight/index";
+import { DirectionalLight } from "./Engine/Light/DirectionalLight/index";
 import "./reset.scss";
 import "./index.scss";
 
 import { Engine } from "./Engine/Engine";
 import { Camera } from "./Engine/Camera";
-import { vec3 } from "gl-matrix";
+import { vec3, vec4 } from "gl-matrix";
 import { Object } from "./Engine/Object";
-import { loadGLTF, loadImage, loadObj } from "./Engine/Utils/Utils";
+import {
+    createSphere,
+    loadGLTF,
+    loadImage,
+    loadObj,
+} from "./Engine/Utils/Utils";
 
 import susURL from "../resources/sus.obj";
 import susTexture from "../resources/sus.png";
@@ -17,6 +24,8 @@ import elephantURL from "../resources/elephant/elephant.gltf";
 import { ObjectsManager } from "./Engine/ObjectsManager";
 import { MeshPrimitive } from "./Engine/MeshPrimitive";
 import { Mesh } from "./Engine/Mesh";
+import { Scene } from "./Engine/Scene";
+import { PointLight } from "./Engine/Light/PointLight";
 // import msssingTexture from "../resources/missing.png"
 
 const controls = document.getElementById("controls");
@@ -29,6 +38,43 @@ if (controls) {
         `);
     });
 }
+
+const createPointLight = (pointLight: PointLight) => {
+    const sphere = createSphere(2, 15);
+    const lightColor = pointLight.getColor();
+    const mesh = new Mesh([
+        new MeshPrimitive(
+            {
+                indices: sphere.indices,
+                normals: sphere.normals,
+                textureCoords: [],
+                vertices: {
+                    data: sphere.vertices,
+                    max: sphere.max as number[],
+                    min: sphere.min as number[],
+                },
+            },
+            {
+                baseImage: null,
+                colorFactor: vec4.fromValues(
+                    lightColor[0],
+                    lightColor[1],
+                    lightColor[2],
+                    1
+                ),
+            }
+        ),
+    ]);
+    mesh.setLight(pointLight);
+
+    const pointLightObject = new Object(
+        [mesh],
+        pointLight.getPosition(),
+        [1, 1, 1]
+    );
+
+    return pointLightObject;
+};
 
 const start = async () => {
     const cameraPosition = vec3.create();
@@ -109,17 +155,53 @@ const start = async () => {
     const sus = new Object(meshes, [0, 0, 5], [1, 1, 1]);
 
     const camera = new Camera(cameraPosition);
-    const engine = new Engine("canvas", camera);
+    const directionalLight = new DirectionalLight(
+        vec3.fromValues(0, 2, 5),
+        vec3.fromValues(1, 1, 1),
+        0.8
+    );
+    const ambientLight = new AmbientLight(vec3.fromValues(1, 1, 1), 0.1);
 
-    engine.addObject(sus);
-    engine.addObject(duck1);
-    engine.addObject(duck2);
-    engine.addObject(shiba1);
-    engine.addObject(shiba2);
-    engine.addObject(shiba3);
-    engine.addObject(building1);
-    engine.addObject(axis);
-    engine.addObject(elephant1);
+    const pointLight1 = new PointLight(
+        vec3.fromValues(0, 0, 0),
+        vec3.fromValues(0, 0, 1),
+        1
+    );
+    const pointLight2 = new PointLight(
+        vec3.fromValues(10, 0, 0),
+        vec3.fromValues(1, 0, 1),
+        0.5
+    );
+    const pointLight3 = new PointLight(
+        vec3.fromValues(0, 7, -22),
+        vec3.fromValues(1, 1, 1),
+        0.5
+    );
+
+    const pointLightObject1 = createPointLight(pointLight1);
+    const pointLightObject2 = createPointLight(pointLight2);
+    const pointLightObject3 = createPointLight(pointLight3);
+
+    const scene = new Scene(camera, directionalLight, ambientLight);
+
+    scene.addPointLight(pointLight1);
+    scene.addPointLight(pointLight2);
+    scene.addPointLight(pointLight3);
+
+    scene.addObject(sus);
+    scene.addObject(duck1);
+    scene.addObject(duck2);
+    scene.addObject(shiba1);
+    scene.addObject(shiba2);
+    scene.addObject(shiba3);
+    scene.addObject(building1);
+    scene.addObject(axis);
+    scene.addObject(elephant1);
+    scene.addObject(pointLightObject1);
+    scene.addObject(pointLightObject2);
+    scene.addObject(pointLightObject3);
+
+    const engine = new Engine("canvas", scene);
 
     engine.run();
 

@@ -16,6 +16,7 @@ export const vertexShader = `
 
   varying vec2 fragTextureCoords;
   varying vec3 fragNormal;
+  varying vec3 fragPosition;
 
   void main(void) {
     fragTextureCoords = textureCoords;
@@ -29,8 +30,10 @@ export const vertexShader = `
       }
       
       gl_Position = projection * view * transformation * skinned;
+      fragPosition = (transformation * skinned).xyz;
     } else {
       gl_Position = projection * view * transformation * vec4(vertexPosition, 1.0);
+      fragPosition = (transformation * vec4(vertexPosition, 1.0)).xyz;
     }
   }
 `;

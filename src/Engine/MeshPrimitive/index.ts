@@ -52,8 +52,12 @@ export class MeshPrimitive {
         this.indices = new Uint16Array(indices);
         this.normals = new Float32Array(normals);
         this.textureCoords = new Float32Array(textureCoords);
-        this.weight = new Float32Array(weight ?? []);
-        this.joints = new Float32Array(joints ?? []);
+        this.weight = new Float32Array(
+            weight ?? this.generateDataForVertexLength(vertices.data)
+        );
+        this.joints = new Float32Array(
+            joints ?? this.generateDataForVertexLength(vertices.data)
+        );
 
         this.material = {
             baseImage,
@@ -62,6 +66,18 @@ export class MeshPrimitive {
         };
 
         this.aabb = new AABB(vertices.max, vertices.min);
+    }
+
+    private generateDataForVertexLength(vertices: number[]) {
+        const verticesLength = vertices.length / 3;
+        const newLength = verticesLength * 4;
+        const result = new Float32Array(newLength);
+
+        for (let i = 0; i < newLength; i++) {
+            result[i] = 1;
+        }
+
+        return result;
     }
 
     public getTextureCoords() {

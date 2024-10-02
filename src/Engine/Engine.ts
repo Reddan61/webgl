@@ -1,12 +1,11 @@
 import { mat4, vec3 } from "gl-matrix";
 
 import { Rays } from "./Rays";
-import { Camera } from "./Camera";
-import { Object } from "./Object";
 
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
 import { ObjectSelector } from "./ObjectSelector";
+import { Scene } from "./Scene";
 
 export class Engine {
     private canvas: HTMLCanvasElement;
@@ -19,14 +18,13 @@ export class Engine {
     private lastFpsUpdate = 0;
     private lastTime = 0;
 
-    private objects: Object[] = [];
-    private camera: Camera;
+    private scene: Scene;
     private objectSelector: ObjectSelector;
 
     private showAABB = false;
     private showRays = true;
 
-    constructor(canvasId: string, camera: Camera) {
+    constructor(canvasId: string, scene: Scene) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
 
         if (!canvas) {
@@ -43,19 +41,20 @@ export class Engine {
         }
 
         this.webgl = gl;
+        this.scene = scene;
+        const camera = scene.getCamera();
         camera.createProjection(this.canvas.width / this.canvas.height);
-        this.camera = camera;
 
-        this.objectSelector = new ObjectSelector(this.canvas, this.camera);
+        this.objectSelector = new ObjectSelector(this.canvas, camera);
 
         this.triangleProgram = new TriangleProgram(
             this.webgl,
-            this.camera.getProjection(),
+            camera.getProjection(),
             camera.getView()
         );
         this.lineProgram = new LineProgram(
             this.webgl,
-            this.camera.getProjection(),
+            camera.getProjection(),
             camera.getView()
         );
 
@@ -66,36 +65,36 @@ export class Engine {
         this.webgl.enable(this.webgl.DEPTH_TEST);
         this.webgl.depthFunc(this.webgl.LESS);
         this.enableCullFace();
+        this.generateTexturesForObjects();
         this.subscribe();
     }
 
     public update(delta: number) {
-        this.camera.update(delta);
-        this.objects.forEach((object) => object.update());
+        this.scene.update(delta);
     }
 
     public setShowAABB(bool: boolean) {
         this.showAABB = bool;
     }
 
-    public addObject(object: Object) {
-        object.getMeshes().forEach((mesh) => {
-            const primitives = mesh.getPrimitives();
-            primitives.forEach((prim) => {
-                const material = prim.getMaterial();
+    private generateTexturesForObjects() {
+        this.scene.getObjects().forEach((object) => {
+            object.getMeshes().forEach((mesh) => {
+                const primitives = mesh.getPrimitives();
+                primitives.forEach((prim) => {
+                    const material = prim.getMaterial();
 
-                if (!material.baseImage) return;
+                    if (!material.baseImage) return;
 
-                const texture = this.createObjectTexture(
-                    material.baseImage,
-                    object.isFlipYTexture()
-                );
+                    const texture = this.createObjectTexture(
+                        material.baseImage,
+                        object.isFlipYTexture()
+                    );
 
-                prim.setTexture(texture);
+                    prim.setTexture(texture);
+                });
             });
         });
-
-        this.objects.push(object);
     }
 
     public run = () => {
@@ -114,10 +113,17 @@ export class Engine {
 
         this.clear();
 
-        this.triangleProgram.useProgram();
-        this.triangleProgram.updateView(this.camera.getView());
+        const camera = this.scene.getCamera();
+        const objects = this.scene.getObjects();
 
-        this.objects.forEach((object) => {
+        this.triangleProgram.useProgram();
+        this.triangleProgram.updateView(camera.getView());
+
+        const ambientLight = this.scene.getAmbientLight();
+        const directionalLight = this.scene.getDirectionalLight();
+        const pointLights = this.scene.getPointLights();
+
+        objects.forEach((object) => {
             if (object.isSingleFace()) {
                 this.disableCullFace();
             } else {
@@ -125,6 +131,7 @@ export class Engine {
             }
 
             object.getMeshes().forEach((mesh) => {
+                const isLight = Boolean(mesh.getLight());
                 const primitives = mesh.getPrimitives();
                 primitives.forEach((prim) => {
                     const material = prim.getMaterial();
@@ -136,6 +143,7 @@ export class Engine {
                     this.triangleProgram.setVariables({
                         useBones,
                         useTexture,
+                        useLight: !isLight,
                         bonesMatrices: mesh.getSkeleton()?.matrices ?? null,
                         colorFactor: material.colorFactor,
                         texture: material.baseTexture,
@@ -147,6 +155,10 @@ export class Engine {
                         weights: prim.getWeights(),
                         modelMatrix: object.getModelMatrix(),
                         normalMatrix: object.getNormalMatrix(),
+                        ambientLight,
+                        directionalLight,
+                        pointLights,
+                        cameraPosition: new Float32Array(camera.getPosition()),
                     });
                     this.triangleProgram.draw(prim.getIndices());
                 });
@@ -155,13 +167,13 @@ export class Engine {
 
         if (this.showAABB || this.showRays) {
             this.lineProgram.useProgram();
-            this.lineProgram.updateView(this.camera.getView());
+            this.lineProgram.updateView(camera.getView());
         }
 
         if (this.showAABB) {
             const selectedObject = this.objectSelector.getSelected();
 
-            this.objects.forEach((object) => {
+            objects.forEach((object) => {
                 const modelMatrix = object.getModelMatrix();
                 const isSelected = selectedObject?.object === object;
 
@@ -275,7 +287,11 @@ export class Engine {
 
             if (isLeftClick) {
                 this.isMouseDown = true;
-                this.objectSelector.select(e.clientX, e.clientY, this.objects);
+                this.objectSelector.select(
+                    e.clientX,
+                    e.clientY,
+                    this.scene.getObjects()
+                );
             }
         });
 
@@ -285,22 +301,24 @@ export class Engine {
             const selected = this.objectSelector.getSelected();
 
             if (selected) {
+                const camera = this.scene.getCamera();
+
                 const ray = Rays.RayCast(
                     e.clientX,
                     e.clientY,
                     this.canvas,
-                    this.camera
+                    camera
                 );
 
                 const t = vec3.distance(
-                    this.camera.getPosition(),
+                    camera.getPosition(),
                     selected.object.getPosition()
                 );
 
                 const point = vec3.create();
                 vec3.scaleAndAdd(
                     point,
-                    this.camera.getPosition(),
+                    camera.getPosition(),
                     ray.getDirection(),
                     t
                 );
@@ -322,7 +340,7 @@ export class Engine {
                     e.clientX,
                     e.clientY,
                     this.canvas,
-                    this.camera
+                    this.scene.getCamera()
                 );
                 const deltaY = e.deltaY * -0.01;
 

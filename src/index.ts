@@ -1,3 +1,5 @@
+import { AmbientLight } from "./Engine/Light/AmbientLight/index";
+import { DirectionalLight } from "./Engine/Light/DirectionalLight/index";
 import "./reset.scss";
 import "./index.scss";
 
@@ -17,6 +19,8 @@ import elephantURL from "../resources/elephant/elephant.gltf";
 import { ObjectsManager } from "./Engine/ObjectsManager";
 import { MeshPrimitive } from "./Engine/MeshPrimitive";
 import { Mesh } from "./Engine/Mesh";
+import { Scene } from "./Engine/Scene";
+import { PointLight } from "./Engine/Light/PointLight";
 // import msssingTexture from "../resources/missing.png"
 
 const controls = document.getElementById("controls");
@@ -109,17 +113,28 @@ const start = async () => {
     const sus = new Object(meshes, [0, 0, 5], [1, 1, 1]);
 
     const camera = new Camera(cameraPosition);
-    const engine = new Engine("canvas", camera);
+    const directionalLight = new DirectionalLight(
+        vec3.fromValues(0, 2, 5),
+        vec3.fromValues(0.9, 0.9, 0.9)
+    );
+    const ambientLight = new AmbientLight(vec3.fromValues(0.2, 0.2, 0.2));
+    const pointLight1 = new PointLight(vec3.fromValues(0, 0, 0));
 
-    engine.addObject(sus);
-    engine.addObject(duck1);
-    engine.addObject(duck2);
-    engine.addObject(shiba1);
-    engine.addObject(shiba2);
-    engine.addObject(shiba3);
-    engine.addObject(building1);
-    engine.addObject(axis);
-    engine.addObject(elephant1);
+    const scene = new Scene(camera, directionalLight, ambientLight);
+
+    scene.addPointLight(pointLight1);
+
+    scene.addObject(sus);
+    scene.addObject(duck1);
+    scene.addObject(duck2);
+    scene.addObject(shiba1);
+    scene.addObject(shiba2);
+    scene.addObject(shiba3);
+    scene.addObject(building1);
+    scene.addObject(axis);
+    scene.addObject(elephant1);
+
+    const engine = new Engine("canvas", scene);
 
     engine.run();
 

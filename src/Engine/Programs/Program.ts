@@ -1,8 +1,8 @@
 export class Program {
-    protected webgl: WebGLRenderingContext;
+    protected webgl: WebGL2RenderingContext;
     protected program: WebGLProgram;
 
-    constructor(webgl: WebGLRenderingContext) {
+    constructor(webgl: WebGL2RenderingContext) {
         this.webgl = webgl;
     }
 
@@ -35,7 +35,7 @@ export class Program {
 
     private shaderInit(
         source: string,
-        mode: WebGLRenderingContextBase["FRAGMENT_SHADER" | "VERTEX_SHADER"]
+        mode: WebGL2RenderingContext["FRAGMENT_SHADER" | "VERTEX_SHADER"]
     ): WebGLShader {
         const shader = this.webgl.createShader(mode) as WebGLShader;
 

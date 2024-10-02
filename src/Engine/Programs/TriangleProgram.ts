@@ -2,33 +2,54 @@ import { mat3, mat4, vec4 } from "gl-matrix";
 import { fragmentShader } from "../shaders/triangles/fragment";
 import { vertexShader } from "../shaders/triangles/vertex";
 import { Program } from "./Program";
+import { ElementBuffer } from "./Buffer/ElementBuffer";
+import { ArrayBuffer } from "./Buffer/ArrayBuffer";
+import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
+import { UniformMatrix3fv } from "./Uniform/UniformMatrix3fv";
+import { Uniform1i } from "./Uniform/Uniform1i";
+import { Uniform4fv } from "./Uniform/Uniform4fv";
+import { Uniform3fv } from "./Uniform/Uniform3fv";
+import { Uniform1f } from "./Uniform/Uniform1f";
+import { ImageTexture } from "./Texture/ImageTexture";
+import { TextureUniform } from "./Uniform/TextureUniform";
+import { Scene } from "../Scene";
 
 export class TriangleProgram extends Program {
-    private vertexBuffer: WebGLBuffer;
-    private textureCoordsBuffer: WebGLBuffer;
-    private normalsBuffer: WebGLBuffer;
-    private indicesBuffer: WebGLBuffer;
-    private weightsBuffer: WebGLBuffer;
-    private bonesIndexesBuffer: WebGLBuffer;
+    private indicesBuffer: ElementBuffer;
+    private vertexBuffer: ArrayBuffer;
+    private textureCoordsBuffer: ArrayBuffer;
+    private normalsBuffer: ArrayBuffer;
+    private weightsBuffer: ArrayBuffer;
+    private bonesIndexesBuffer: ArrayBuffer;
 
-    private transformationLocation: WebGLUniformLocation;
-    private normalMatLocation: WebGLUniformLocation;
-    private viewLocation: WebGLUniformLocation;
-    private colorFactorLocation: WebGLUniformLocation;
-    private useTextureLocation: WebGLUniformLocation;
-    private bonesLocation: WebGLUniformLocation;
-    private useBonesLocation: WebGLUniformLocation;
+    private useTextureUniform: Uniform1i;
+    private useBonesUniform: Uniform1i;
+    private useLightUniform: Uniform1i;
 
-    private vertexAttributeLocation: number;
-    private normalsAttributeLocation: number;
-    private vertexTextureLocation: number;
-    private weightsAttributeLocation: number;
-    private bonesIndexesAttributeLocation: number;
+    private objectTextureUniform: TextureUniform;
+    private pointLightDataTextureUniform: TextureUniform;
+    private pointLightNum: Uniform1f;
 
-    constructor(webgl: WebGLRenderingContext, perspective: mat4, view: mat4) {
+    private ambientLightBrightUniform: Uniform1f;
+    private ambientLightColorUniform: Uniform3fv;
+
+    private directionalLightBrightUniform: Uniform1f;
+    private directionalLightColorUniform: Uniform3fv;
+    private directionalLightDirUniform: Uniform3fv;
+
+    private cameraPositionUniform: Uniform3fv;
+
+    private colorFactorUniform: Uniform4fv;
+
+    private normalMatUniform: UniformMatrix3fv;
+    private transformationMatrix: UniformMatrix4fv;
+    private bonesUniform: UniformMatrix4fv;
+    private viewMatUniform: UniformMatrix4fv;
+
+    constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
-        this.useProgram();
+        super.useProgram();
         this.initBuffers();
         this.matrixInit(perspective, view);
     }
@@ -49,152 +70,177 @@ export class TriangleProgram extends Program {
     }
 
     public updateView(view: mat4) {
-        this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
+        this.viewMatUniform.setData(view);
     }
 
     public useProgram() {
-        this.setAttributes();
         super.useProgram();
+        this.setAttributes();
     }
 
     private setAttributes() {
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-        this.webgl.vertexAttribPointer(
-            this.vertexAttributeLocation,
-            3,
-            this.webgl.FLOAT,
-            false,
-            0,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.vertexAttributeLocation);
-
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
-        this.webgl.vertexAttribPointer(
-            this.normalsAttributeLocation,
-            3,
-            this.webgl.FLOAT,
-            true,
-            0,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.normalsAttributeLocation);
-
-        this.webgl.bindBuffer(
-            this.webgl.ARRAY_BUFFER,
-            this.textureCoordsBuffer
-        );
-        this.webgl.vertexAttribPointer(
-            this.vertexTextureLocation,
-            2,
-            this.webgl.FLOAT,
-            false,
-            0,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.vertexTextureLocation);
-
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.weightsBuffer);
-        this.webgl.vertexAttribPointer(
-            this.weightsAttributeLocation,
-            4,
-            this.webgl.FLOAT,
-            false,
-            0,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.weightsAttributeLocation);
-
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.bonesIndexesBuffer);
-        this.webgl.vertexAttribPointer(
-            this.bonesIndexesAttributeLocation,
-            4,
-            this.webgl.FLOAT,
-            false,
-            0,
-            0
-        );
-        this.webgl.enableVertexAttribArray(this.bonesIndexesAttributeLocation);
+        this.vertexBuffer.setAttributes();
+        this.normalsBuffer.setAttributes();
+        this.textureCoordsBuffer.setAttributes();
+        this.weightsBuffer.setAttributes();
+        this.bonesIndexesBuffer.setAttributes();
     }
 
     private initBuffers() {
-        this.vertexBuffer = this.webgl.createBuffer() as WebGLBuffer;
+        this.indicesBuffer = new ElementBuffer(this.webgl);
 
-        this.textureCoordsBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.normalsBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.indicesBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.weightsBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.bonesIndexesBuffer = this.webgl.createBuffer() as WebGLBuffer;
-
-        this.vertexAttributeLocation = this.webgl.getAttribLocation(
+        this.vertexBuffer = new ArrayBuffer(
+            this.webgl,
             this.program,
-            "vertexPosition"
-        );
-        this.normalsAttributeLocation = this.webgl.getAttribLocation(
-            this.program,
-            "normals"
-        );
-        this.vertexTextureLocation = this.webgl.getAttribLocation(
-            this.program,
-            "textureCoords"
+            "vertexPosition",
+            3,
+            this.webgl.FLOAT
         );
 
-        this.weightsAttributeLocation = this.webgl.getAttribLocation(
+        this.textureCoordsBuffer = new ArrayBuffer(
+            this.webgl,
             this.program,
-            "weight"
+            "textureCoords",
+            2,
+            this.webgl.FLOAT
         );
 
-        this.bonesIndexesAttributeLocation = this.webgl.getAttribLocation(
+        this.normalsBuffer = new ArrayBuffer(
+            this.webgl,
             this.program,
-            "boneIndexes"
+            "normals",
+            3,
+            this.webgl.FLOAT
+        );
+
+        this.weightsBuffer = new ArrayBuffer(
+            this.webgl,
+            this.program,
+            "weight",
+            4,
+            this.webgl.FLOAT
+        );
+
+        this.bonesIndexesBuffer = new ArrayBuffer(
+            this.webgl,
+            this.program,
+            "boneIndexes",
+            4,
+            this.webgl.FLOAT
         );
 
         this.setAttributes();
     }
 
     private matrixInit(perspective: mat4, view: mat4) {
-        this.viewLocation = this.webgl.getUniformLocation(
+        this.viewMatUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "view"
-        ) as WebGLUniformLocation;
-        this.transformationLocation = this.webgl.getUniformLocation(
+        );
+        this.transformationMatrix = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "transformation"
-        ) as WebGLUniformLocation;
-        this.normalMatLocation = this.webgl.getUniformLocation(
+        );
+        this.normalMatUniform = new UniformMatrix3fv(
+            this.webgl,
             this.program,
             "normalMat"
-        ) as WebGLUniformLocation;
-        this.useTextureLocation = this.webgl.getUniformLocation(
+        );
+        this.useTextureUniform = new Uniform1i(
+            this.webgl,
             this.program,
             "useTexture"
-        ) as WebGLUniformLocation;
-        this.colorFactorLocation = this.webgl.getUniformLocation(
+        );
+
+        this.ambientLightColorUniform = new Uniform3fv(
+            this.webgl,
+            this.program,
+            "ambientLight.color"
+        );
+        this.ambientLightBrightUniform = new Uniform1f(
+            this.webgl,
+            this.program,
+            "ambientLight.bright"
+        );
+
+        this.directionalLightColorUniform = new Uniform3fv(
+            this.webgl,
+            this.program,
+            "directionalLight.color"
+        );
+
+        this.directionalLightBrightUniform = new Uniform1f(
+            this.webgl,
+            this.program,
+            "directionalLight.bright"
+        );
+
+        this.directionalLightDirUniform = new Uniform3fv(
+            this.webgl,
+            this.program,
+            "directionalLight.direction"
+        );
+
+        this.cameraPositionUniform = new Uniform3fv(
+            this.webgl,
+            this.program,
+            "cameraPosition"
+        );
+
+        this.colorFactorUniform = new Uniform4fv(
+            this.webgl,
             this.program,
             "colorFactor"
-        ) as WebGLUniformLocation;
+        );
 
-        const projectionLocation = this.webgl.getUniformLocation(
+        const projectionMatUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "projection"
         );
 
-        this.bonesLocation = this.webgl.getUniformLocation(
+        this.bonesUniform = new UniformMatrix4fv(
+            this.webgl,
             this.program,
             "bones"
-        ) as WebGLUniformLocation;
-
-        this.useBonesLocation = this.webgl.getUniformLocation(
+        );
+        this.useBonesUniform = new Uniform1i(
+            this.webgl,
             this.program,
             "useBones"
-        ) as WebGLUniformLocation;
+        );
+        this.useLightUniform = new Uniform1i(
+            this.webgl,
+            this.program,
+            "useLight"
+        );
 
-        this.webgl.uniformMatrix4fv(this.viewLocation, false, view);
-        this.webgl.uniformMatrix4fv(projectionLocation, false, perspective);
+        this.viewMatUniform.setData(view);
+        projectionMatUniform.setData(perspective);
+
+        this.objectTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "objectTexture",
+            0,
+            this.webgl.TEXTURE0
+        );
+
+        this.pointLightDataTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "pointLightsDataTexture",
+            1,
+            this.webgl.TEXTURE1
+        );
+
+        this.pointLightNum = new Uniform1f(
+            this.webgl,
+            this.program,
+            "pointLightsCount"
+        );
     }
 
     private setVertexShaderBuffers({
@@ -210,7 +256,10 @@ export class TriangleProgram extends Program {
         normalMatrix,
         bonesMatrices,
         colorFactor,
-        texture,
+        objectTexture,
+        scene,
+        useLight,
+        cameraPosition,
     }: {
         useTexture: boolean;
         useBones: boolean;
@@ -220,83 +269,55 @@ export class TriangleProgram extends Program {
         weights: Float32Array;
         normals: Float32Array;
         textureCoords: Float32Array;
+        scene: Scene;
         bonesMatrices: mat4 | null;
         modelMatrix: mat4;
         normalMatrix: mat3;
-        texture: WebGLTexture | null;
+        objectTexture: ImageTexture | null;
         colorFactor: vec4;
+        cameraPosition: Float32Array;
+        useLight: boolean;
     }) {
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.vertexBuffer);
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            vertices,
-            this.webgl.DYNAMIC_DRAW
+        this.indicesBuffer.setBufferData(indices);
+
+        this.vertexBuffer.setBufferData(vertices);
+        this.textureCoordsBuffer.setBufferData(textureCoords);
+        this.normalsBuffer.setBufferData(normals);
+        this.weightsBuffer.setBufferData(weights);
+        this.bonesIndexesBuffer.setBufferData(joints);
+
+        this.useBonesUniform.setData(Number(useBones));
+        this.useTextureUniform.setData(Number(useTexture));
+        this.useLightUniform.setData(Number(useLight));
+
+        const ambientLight = scene.getAmbientLight();
+        this.ambientLightBrightUniform.setData(ambientLight.getBright());
+        this.ambientLightColorUniform.setData(
+            new Float32Array(ambientLight.getColor())
         );
 
-        this.webgl.bindBuffer(
-            this.webgl.ARRAY_BUFFER,
-            this.textureCoordsBuffer
+        const directionalLight = scene.getDirectionalLight();
+        this.directionalLightBrightUniform.setData(
+            directionalLight.getBright()
         );
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            textureCoords,
-            this.webgl.DYNAMIC_DRAW
+        this.directionalLightColorUniform.setData(
+            new Float32Array(directionalLight.getColor())
         );
+        this.directionalLightDirUniform.setData(
+            new Float32Array(directionalLight.getDirection())
+        );
+        this.cameraPositionUniform.setData(cameraPosition);
 
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.normalsBuffer);
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            normals,
-            this.webgl.DYNAMIC_DRAW
-        );
+        this.bonesUniform.setData(bonesMatrices ?? mat4.create());
+        this.colorFactorUniform.setData(colorFactor);
 
-        this.webgl.bindBuffer(
-            this.webgl.ELEMENT_ARRAY_BUFFER,
-            this.indicesBuffer
-        );
-        this.webgl.bufferData(
-            this.webgl.ELEMENT_ARRAY_BUFFER,
-            indices,
-            this.webgl.DYNAMIC_DRAW
-        );
+        this.transformationMatrix.setData(modelMatrix);
+        this.normalMatUniform.setData(normalMatrix);
 
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.weightsBuffer);
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            weights,
-            this.webgl.DYNAMIC_DRAW
+        this.objectTextureUniform.setData(objectTexture?.getTexture() ?? null);
+        this.pointLightDataTextureUniform.setData(
+            scene._getPointLightsDataTexture()?.getTexture() ?? null
         );
-
-        this.webgl.bindBuffer(this.webgl.ARRAY_BUFFER, this.bonesIndexesBuffer);
-        this.webgl.bufferData(
-            this.webgl.ARRAY_BUFFER,
-            joints,
-            this.webgl.DYNAMIC_DRAW
-        );
-
-        this.webgl.uniformMatrix4fv(
-            this.transformationLocation,
-            false,
-            modelMatrix
-        );
-        this.webgl.uniformMatrix3fv(
-            this.normalMatLocation,
-            false,
-            normalMatrix
-        );
-
-        this.webgl.uniformMatrix4fv(
-            this.bonesLocation,
-            false,
-            bonesMatrices ?? mat4.create()
-        );
-
-        this.webgl.uniform1i(this.useBonesLocation, Number(useBones));
-
-        this.webgl.uniform1i(this.useTextureLocation, Number(useTexture));
-        this.webgl.uniform4fv(this.colorFactorLocation, colorFactor);
-
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture);
-        this.webgl.activeTexture(this.webgl.TEXTURE0);
+        this.pointLightNum.setData(scene.getPointLights().length);
     }
 }

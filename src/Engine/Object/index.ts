@@ -81,22 +81,28 @@ export class Object {
 
     public setPosition(position: vec3) {
         this.position = position;
+        this.meshes.forEach((mesh) =>
+            mesh.getLight()?.setPosition(this.position)
+        );
         this.calculateMatrix();
     }
 
     public setPositionX(num: number) {
-        this.position[0] = num;
-        this.calculateMatrix();
+        this.setPosition(
+            vec3.fromValues(num, this.position[1], this.position[2])
+        );
     }
 
     public setPositionY(num: number) {
-        this.position[1] = num;
-        this.calculateMatrix();
+        this.setPosition(
+            vec3.fromValues(this.position[0], num, this.position[2])
+        );
     }
 
     public setPositionZ(num: number) {
-        this.position[2] = num;
-        this.calculateMatrix();
+        this.setPosition(
+            vec3.fromValues(this.position[0], this.position[1], num)
+        );
     }
 
     public addPosition(deltaPos: vec3) {

@@ -141,6 +141,8 @@ export class Engine {
 
                     this.triangleProgram.setVariables({
                         useBones,
+                        bonesDataTexture: mesh.getBonesDataTexture(),
+                        bonesCount: mesh.getSkeletonBonesCount(),
                         scene: this.scene,
                         useTexture,
                         useLight: !isLight,

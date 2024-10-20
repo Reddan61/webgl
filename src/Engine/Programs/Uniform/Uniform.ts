@@ -23,9 +23,5 @@ export class Uniform {
         ) as WebGLUniformLocation;
     }
 
-    public test() {
-        return this.location;
-    }
-
     public setData(data: unknown) {}
 }

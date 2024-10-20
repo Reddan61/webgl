@@ -42,6 +42,12 @@ export class Object {
         this.createAABB();
     }
 
+    public _setWebGl(webgl: WebGL2RenderingContext) {
+        this.meshes.forEach((mesh) => {
+            mesh._setWebGl(webgl);
+        });
+    }
+
     public getModelMatrix() {
         return this.modelMatrix;
     }

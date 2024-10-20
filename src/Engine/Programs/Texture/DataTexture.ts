@@ -1,10 +1,6 @@
 import { Texture } from "./Texture";
 
 export class DataTexture extends Texture {
-    constructor(webgl: WebGL2RenderingContext) {
-        super(webgl);
-    }
-
     public update(data: Float32Array, width: number, height: number) {
         this.setData(data, width, height);
     }

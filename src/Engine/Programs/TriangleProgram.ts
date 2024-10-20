@@ -13,6 +13,7 @@ import { Uniform1f } from "./Uniform/Uniform1f";
 import { ImageTexture } from "./Texture/ImageTexture";
 import { TextureUniform } from "./Uniform/TextureUniform";
 import { Scene } from "../Scene";
+import { DataTexture } from "./Texture/DataTexture";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -30,6 +31,9 @@ export class TriangleProgram extends Program {
     private pointLightDataTextureUniform: TextureUniform;
     private pointLightNum: Uniform1f;
 
+    private bonesDataTextureUniform: TextureUniform;
+    private bonesCountUniform: Uniform1f;
+
     private ambientLightBrightUniform: Uniform1f;
     private ambientLightColorUniform: Uniform3fv;
 
@@ -43,7 +47,6 @@ export class TriangleProgram extends Program {
 
     private normalMatUniform: UniformMatrix3fv;
     private transformationMatrix: UniformMatrix4fv;
-    private bonesUniform: UniformMatrix4fv;
     private viewMatUniform: UniformMatrix4fv;
 
     constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
@@ -201,11 +204,6 @@ export class TriangleProgram extends Program {
             "projection"
         );
 
-        this.bonesUniform = new UniformMatrix4fv(
-            this.webgl,
-            this.program,
-            "bones"
-        );
         this.useBonesUniform = new Uniform1i(
             this.webgl,
             this.program,
@@ -241,6 +239,19 @@ export class TriangleProgram extends Program {
             this.program,
             "pointLightsCount"
         );
+
+        this.bonesDataTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "bonesDataTexture",
+            2,
+            this.webgl.TEXTURE2
+        );
+        this.bonesCountUniform = new Uniform1f(
+            this.webgl,
+            this.program,
+            "numBones"
+        );
     }
 
     private setVertexShaderBuffers({
@@ -260,6 +271,8 @@ export class TriangleProgram extends Program {
         scene,
         useLight,
         cameraPosition,
+        bonesDataTexture,
+        bonesCount,
     }: {
         useTexture: boolean;
         useBones: boolean;
@@ -274,6 +287,8 @@ export class TriangleProgram extends Program {
         modelMatrix: mat4;
         normalMatrix: mat3;
         objectTexture: ImageTexture | null;
+        bonesDataTexture: DataTexture | null;
+        bonesCount: number;
         colorFactor: vec4;
         cameraPosition: Float32Array;
         useLight: boolean;
@@ -308,7 +323,6 @@ export class TriangleProgram extends Program {
         );
         this.cameraPositionUniform.setData(cameraPosition);
 
-        this.bonesUniform.setData(bonesMatrices ?? mat4.create());
         this.colorFactorUniform.setData(colorFactor);
 
         this.transformationMatrix.setData(modelMatrix);
@@ -319,5 +333,10 @@ export class TriangleProgram extends Program {
             scene._getPointLightsDataTexture()?.getTexture() ?? null
         );
         this.pointLightNum.setData(scene.getPointLights().length);
+
+        this.bonesDataTextureUniform.setData(
+            bonesDataTexture?.getTexture() ?? null
+        );
+        this.bonesCountUniform.setData(bonesCount);
     }
 }

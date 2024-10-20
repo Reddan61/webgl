@@ -3,12 +3,15 @@ import { MeshPrimitive } from "../MeshPrimitive";
 import { Bone } from "../Bones/Bones";
 import { AABB } from "../AABB";
 import { PointLight } from "../Light/PointLight";
+import { DataTexture } from "../Programs/Texture/DataTexture";
 
 interface MeshSekeleton {
     matrices: Float32Array;
 }
 
 export class Mesh {
+    private webgl: WebGL2RenderingContext | null = null;
+
     private aabb: AABB;
 
     private primitives: MeshPrimitive[] = [];
@@ -16,6 +19,7 @@ export class Mesh {
     private inverseBindMatrices: number[];
     private bones: Bone[] = [];
     private skeleton: MeshSekeleton | null = null;
+    private skeletonDataTexture: DataTexture | null = null;
 
     private light: PointLight | null = null;
 
@@ -36,6 +40,11 @@ export class Mesh {
         this.calculateBones();
     }
 
+    public _setWebGl(webgl: WebGL2RenderingContext) {
+        this.webgl = webgl;
+        this.skeletonDataTexture = new DataTexture(this.webgl);
+    }
+
     public update() {
         this.calculateBones();
     }
@@ -46,6 +55,10 @@ export class Mesh {
 
     public getLight() {
         return this.light;
+    }
+
+    public getBonesDataTexture() {
+        return this.skeletonDataTexture;
     }
 
     public getPrimitives() {
@@ -60,8 +73,12 @@ export class Mesh {
         return this.skeleton;
     }
 
+    public getSkeletonBonesCount() {
+        return this.bonesIndexes.length;
+    }
+
     private calculateBones() {
-        const numBones = this.bonesIndexes.length;
+        const numBones = this.getSkeletonBonesCount();
 
         if (numBones === 0) {
             this.skeleton = null;
@@ -92,6 +109,9 @@ export class Mesh {
         this.skeleton = {
             matrices: skinningsMatrices,
         };
+
+        // 1 matrice row = 1 texel (RGBA = vec4)
+        this.skeletonDataTexture?.update(skinningsMatrices, 4, numBones);
     }
 
     private createAABB() {

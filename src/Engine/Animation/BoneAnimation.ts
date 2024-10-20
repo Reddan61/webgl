@@ -1,10 +1,6 @@
-import { vec2, vec3, vec4 } from "gl-matrix";
+import { vec3, vec4 } from "gl-matrix";
 import { Bone } from "../Bones/Bones";
-import {
-    ACCESSOR_TYPE,
-    ANIMATION_INTERPOLATION,
-    ANIMATION_PATH,
-} from "../Utils/GLTF/types";
+import { ANIMATION_INTERPOLATION, ANIMATION_PATH } from "../Utils/GLTF/types";
 
 export interface AnimationSampler {
     input: {
@@ -28,17 +24,6 @@ export interface AnimationChannel {
     };
 }
 
-const VECTORS_TYPE = {
-    [ACCESSOR_TYPE.VEC2]: vec2,
-    [ACCESSOR_TYPE.VEC3]: vec3,
-    [ACCESSOR_TYPE.VEC4]: vec4,
-};
-
-const VECTOR_LENGTH = {
-    [ACCESSOR_TYPE.VEC2]: 2,
-    [ACCESSOR_TYPE.VEC3]: 3,
-    [ACCESSOR_TYPE.VEC4]: 4,
-};
 export class BoneAnimation {
     private samplers: AnimationSampler[] = [];
     private channels: AnimationChannel[] = [];

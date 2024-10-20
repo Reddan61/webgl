@@ -29,6 +29,9 @@ export class Scene {
     public _setWebGl(webgl: WebGL2RenderingContext) {
         this.pointLightsDataTexture = new DataTexture(webgl);
         this.updatePointLightsDataTexture();
+        this.objects.forEach((object) => {
+            object._setWebGl(webgl);
+        });
     }
 
     public _getPointLightsDataTexture() {

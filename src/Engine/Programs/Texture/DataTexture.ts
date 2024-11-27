@@ -5,17 +5,24 @@ export class DataTexture extends Texture {
         this.setData(data, width, height);
     }
 
-    public setData(data: Float32Array, width: number, height: number) {
+    public setData(
+        data: Float32Array | null,
+        width: number,
+        height: number,
+        internalformat: GLint = this.webgl.RGBA32F,
+        format: GLenum = this.webgl.RGBA,
+        type: GLenum = this.webgl.FLOAT
+    ) {
         this.bind();
         this.webgl.texImage2D(
             this.webgl.TEXTURE_2D,
             0,
-            this.webgl.RGBA32F,
+            internalformat,
             width,
             height,
             0,
-            this.webgl.RGBA,
-            this.webgl.FLOAT,
+            format,
+            type,
             data
         );
 

@@ -7,15 +7,10 @@ import { Engine } from "./Engine/Engine";
 import { Camera } from "./Engine/Camera";
 import { vec3, vec4 } from "gl-matrix";
 import { Object } from "./Engine/Object";
-import {
-    createSphere,
-    loadGLTF,
-    loadImage,
-    loadObj,
-} from "./Engine/Utils/Utils";
+import { createSphere, loadGLTF } from "./Engine/Utils/Utils";
 
-import susURL from "../resources/sus.obj";
-import susTexture from "../resources/sus.png";
+// import susURL from "../resources/sus.obj";
+// import susTexture from "../resources/sus.png";
 import duckURL from "../resources/duck/duck.gltf";
 import shibaURL from "../resources/shiba/shiba.gltf";
 import buildingURL from "../resources/building/building.gltf";
@@ -83,9 +78,9 @@ const start = async () => {
     cameraPosition[2] = 5;
 
     // const missingImage = await loadImage(msssingTexture);
-    const susImage = await loadImage(susTexture);
+    // const susImage = await loadImage(susTexture);
 
-    const susParsed = await loadObj(susURL);
+    // const susParsed = await loadObj(susURL);
 
     const duckParsed = await loadGLTF(duckURL);
     const shibaParsed = await loadGLTF(shibaURL);
@@ -99,6 +94,7 @@ const start = async () => {
     const shiba1 = ObjectsManager.getObjectsFromParsedGLTF(shibaParsed)[0];
     shiba1.rotate(-90, 0);
     shiba1.setFlipYTexture(false);
+    shiba1.setPosition([0, 4, -21]);
     const shiba2 = ObjectsManager.getObjectsFromParsedGLTF(shibaParsed)[0];
     shiba2.setPosition([5, 0, 0]);
     shiba2.setScaling([2, 2, 2]);
@@ -111,7 +107,7 @@ const start = async () => {
     shiba3.setFlipYTexture(false);
 
     const duck1 = ObjectsManager.getObjectsFromParsedGLTF(duckParsed)[0];
-    duck1.setPosition([-150, 0, 0]);
+    duck1.setPosition([0, 50, -100]);
     duck1.setScaling([0.5, 0.5, 0.5]);
     duck1.rotate(-90, 90);
     duck1.setFlipYTexture(false);
@@ -135,24 +131,24 @@ const start = async () => {
     elephant1.rotate(0, -90);
     elephant1.setFlipYTexture(false);
 
-    const primitvies = [
-        new MeshPrimitive(
-            {
-                indices: susParsed.indices,
-                normals: susParsed.normals,
-                textureCoords: susParsed.textureCoords,
-                vertices: susParsed.vertices,
-            },
-            {
-                colorFactor: [1, 1, 1, 1],
-                baseImage: susImage,
-            }
-        ),
-    ];
+    // const primitvies = [
+    //     new MeshPrimitive(
+    //         {
+    //             indices: susParsed.indices,
+    //             normals: susParsed.normals,
+    //             textureCoords: susParsed.textureCoords,
+    //             vertices: susParsed.vertices,
+    //         },
+    //         {
+    //             colorFactor: [1, 1, 1, 1],
+    //             baseImage: susImage,
+    //         }
+    //     ),
+    // ];
 
-    const meshes = [new Mesh(primitvies)];
+    // const meshes = [new Mesh(primitvies)];
 
-    const sus = new Object(meshes, [0, 0, 5], [1, 1, 1]);
+    // const sus = new Object(meshes, [0, 0, 5], [1, 1, 1]);
 
     const camera = new Camera(cameraPosition);
     const directionalLight = new DirectionalLight(
@@ -177,41 +173,67 @@ const start = async () => {
         vec3.fromValues(1, 1, 1),
         0.5
     );
+    const pointLight4 = new PointLight(
+        vec3.fromValues(-10, 7, -22),
+        vec3.fromValues(1, 1, 1),
+        0.5
+    );
+
+    // const pointLight5 = new PointLight(
+    //     vec3.fromValues(-15, 7, -22),
+    //     vec3.fromValues(1, 1, 1),
+    //     0.5
+    // );
 
     const pointLightObject1 = createPointLight(pointLight1);
     const pointLightObject2 = createPointLight(pointLight2);
     const pointLightObject3 = createPointLight(pointLight3);
+    const pointLightObject4 = createPointLight(pointLight4);
+    // const pointLightObject5 = createPointLight(pointLight5);
 
     const scene = new Scene(camera, directionalLight, ambientLight);
 
     scene.addPointLight(pointLight1);
     scene.addPointLight(pointLight2);
     scene.addPointLight(pointLight3);
+    scene.addPointLight(pointLight4);
+    // scene.addPointLight(pointLight5);
 
-    scene.addObject(sus);
+    // scene.addObject(sus);
     scene.addObject(duck1);
     scene.addObject(duck2);
     scene.addObject(shiba1);
     scene.addObject(shiba2);
     scene.addObject(shiba3);
     scene.addObject(building1);
-    scene.addObject(axis);
+    // scene.addObject(axis);
     scene.addObject(elephant1);
     scene.addObject(pointLightObject1);
     scene.addObject(pointLightObject2);
     scene.addObject(pointLightObject3);
+    scene.addObject(pointLightObject4);
+    // scene.addObject(pointLightObject5);
 
     const engine = new Engine("canvas", scene);
 
     engine.run();
 
     const aabbElement = document.getElementById("aabb");
+    const textureElement = document.getElementById("texture");
 
     if (aabbElement) {
         aabbElement.addEventListener("change", (e) => {
             const target = e.target as HTMLInputElement;
             const checked = target.checked;
             engine.setShowAABB(checked);
+            target.blur();
+        });
+    }
+    if (textureElement) {
+        textureElement.addEventListener("change", (e) => {
+            const target = e.target as HTMLInputElement;
+            const checked = target.checked;
+            engine.setShowTexture(checked);
             target.blur();
         });
     }

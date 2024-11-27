@@ -14,6 +14,10 @@ import { ImageTexture } from "./Texture/ImageTexture";
 import { TextureUniform } from "./Uniform/TextureUniform";
 import { Scene } from "../Scene";
 import { DataTexture } from "./Texture/DataTexture";
+import { CubeTextureUniform } from "./Uniform/CubeTextureUniform";
+import { CubeTexture } from "./Texture/CubeTexture";
+import { ShadowAtlasProgram } from "./ShadowAtlasProgram";
+import { ShadowMapProgram } from "./ShadowMapProgram";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -28,6 +32,8 @@ export class TriangleProgram extends Program {
     private useLightUniform: Uniform1i;
 
     private objectTextureUniform: TextureUniform;
+    private shadowMapTextureUniform: TextureUniform;
+    private shadowAtlasTextureUniform: TextureUniform;
     private pointLightDataTextureUniform: TextureUniform;
     private pointLightNum: Uniform1f;
 
@@ -48,6 +54,7 @@ export class TriangleProgram extends Program {
     private normalMatUniform: UniformMatrix3fv;
     private transformationMatrix: UniformMatrix4fv;
     private viewMatUniform: UniformMatrix4fv;
+    private lightSpaceMatrixUniform: UniformMatrix4fv;
 
     constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
         super(webgl);
@@ -63,12 +70,77 @@ export class TriangleProgram extends Program {
         this.setVertexShaderBuffers(parameters);
     }
 
-    public draw(indices: Uint16Array) {
-        this.webgl.drawElements(
-            this.webgl.TRIANGLES,
-            indices.length,
-            this.webgl.UNSIGNED_SHORT,
-            0
+    public draw(
+        width: number,
+        height: number,
+        scene: Scene,
+        shadowAtlasProgram: ShadowAtlasProgram,
+        shadowMapProgram: ShadowMapProgram
+    ) {
+        this.useProgram();
+        this.bind(width, height);
+
+        const camera = scene.getCamera();
+        const objects = scene.getObjects();
+
+        this.updateView(camera.getView());
+
+        objects.forEach((object) => {
+            if (object.isSingleFace()) {
+                this.disableCullFace();
+            } else {
+                this.enableCullFace();
+            }
+
+            object.getMeshes().forEach((mesh) => {
+                const isLight = Boolean(mesh.getLight());
+                const primitives = mesh.getPrimitives();
+                primitives.forEach((prim) => {
+                    const material = prim.getMaterial();
+
+                    const useTexture = Boolean(material.baseTexture);
+                    const boneMatrices = mesh.getSkeleton()?.matrices;
+                    const useBones = !!boneMatrices;
+
+                    this.setVariables({
+                        useBones,
+                        scene,
+                        bonesDataTexture: mesh.getBonesDataTexture(),
+                        bonesCount: mesh.getSkeletonBonesCount(),
+                        shadowMapTexture:
+                            shadowMapProgram.getShadowMapTexture(),
+                        shadowAtlasTexture:
+                            shadowAtlasProgram.getAtlasTexture(),
+                        useTexture,
+                        useLight: !isLight,
+                        colorFactor: material.colorFactor,
+                        objectTexture: material.baseTexture,
+                        indices: prim.getIndices(),
+                        joints: prim.getJoints(),
+                        normals: prim.getNormals(),
+                        textureCoords: prim.getTextureCoords(),
+                        vertices: prim.getVertices(),
+                        weights: prim.getWeights(),
+                        modelMatrix: object.getModelMatrix(),
+                        normalMatrix: object.getNormalMatrix(),
+                        cameraPosition: new Float32Array(camera.getPosition()),
+                    });
+
+                    this.webgl.drawElements(
+                        this.webgl.TRIANGLES,
+                        prim.getIndices().length,
+                        this.webgl.UNSIGNED_SHORT,
+                        0
+                    );
+                });
+            });
+        });
+    }
+
+    private bind(width: number, height: number) {
+        this.webgl.viewport(0, 0, width, height);
+        this.webgl.clear(
+            this.webgl.DEPTH_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT
         );
     }
 
@@ -87,6 +159,16 @@ export class TriangleProgram extends Program {
         this.textureCoordsBuffer.setAttributes();
         this.weightsBuffer.setAttributes();
         this.bonesIndexesBuffer.setAttributes();
+    }
+
+    private enableCullFace() {
+        this.webgl.enable(this.webgl.CULL_FACE);
+        this.webgl.frontFace(this.webgl.CCW);
+        this.webgl.cullFace(this.webgl.BACK);
+    }
+
+    private disableCullFace() {
+        this.webgl.disable(this.webgl.CULL_FACE);
     }
 
     private initBuffers() {
@@ -145,6 +227,11 @@ export class TriangleProgram extends Program {
             this.webgl,
             this.program,
             "transformation"
+        );
+        this.lightSpaceMatrixUniform = new UniformMatrix4fv(
+            this.webgl,
+            this.program,
+            "lightSpaceMatrix"
         );
         this.normalMatUniform = new UniformMatrix3fv(
             this.webgl,
@@ -252,6 +339,20 @@ export class TriangleProgram extends Program {
             this.program,
             "numBones"
         );
+        this.shadowMapTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "shadowMap",
+            3,
+            this.webgl.TEXTURE3
+        );
+        this.shadowAtlasTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "shadowAtlas",
+            4,
+            this.webgl.TEXTURE4
+        );
     }
 
     private setVertexShaderBuffers({
@@ -265,13 +366,14 @@ export class TriangleProgram extends Program {
         indices,
         modelMatrix,
         normalMatrix,
-        bonesMatrices,
         colorFactor,
         objectTexture,
         scene,
         useLight,
         cameraPosition,
         bonesDataTexture,
+        shadowMapTexture,
+        shadowAtlasTexture,
         bonesCount,
     }: {
         useTexture: boolean;
@@ -283,11 +385,12 @@ export class TriangleProgram extends Program {
         normals: Float32Array;
         textureCoords: Float32Array;
         scene: Scene;
-        bonesMatrices: mat4 | null;
         modelMatrix: mat4;
         normalMatrix: mat3;
         objectTexture: ImageTexture | null;
         bonesDataTexture: DataTexture | null;
+        shadowMapTexture: DataTexture;
+        shadowAtlasTexture: DataTexture;
         bonesCount: number;
         colorFactor: vec4;
         cameraPosition: Float32Array;
@@ -321,6 +424,7 @@ export class TriangleProgram extends Program {
         this.directionalLightDirUniform.setData(
             new Float32Array(directionalLight.getDirection())
         );
+
         this.cameraPositionUniform.setData(cameraPosition);
 
         this.colorFactorUniform.setData(colorFactor);
@@ -338,5 +442,8 @@ export class TriangleProgram extends Program {
             bonesDataTexture?.getTexture() ?? null
         );
         this.bonesCountUniform.setData(bonesCount);
+        this.lightSpaceMatrixUniform.setData(directionalLight.getLightMatrix());
+        this.shadowMapTextureUniform.setData(shadowMapTexture.getTexture());
+        this.shadowAtlasTextureUniform.setData(shadowAtlasTexture.getTexture());
     }
 }

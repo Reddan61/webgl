@@ -7,12 +7,18 @@ import { LineProgram } from "./Programs/LineProgram";
 import { ObjectSelector } from "./ObjectSelector";
 import { Scene } from "./Scene";
 import { ImageTexture } from "./Programs/Texture/ImageTexture";
+import { ShadowMapProgram } from "./Programs/ShadowMapProgram";
+import { ShadowAtlasProgram } from "./Programs/ShadowAtlasProgram";
+import { TextureShowProgram } from "./Programs/TextureShowProgram";
 
 export class Engine {
     private canvas: HTMLCanvasElement;
     private webgl: WebGL2RenderingContext;
     private triangleProgram: TriangleProgram;
     private lineProgram: LineProgram;
+    private shadowMapProgram: ShadowMapProgram;
+    private shadowAtlasProgram: ShadowAtlasProgram;
+    private textureShowProgram: TextureShowProgram;
 
     private currentfps = 0;
     private fpsToDraw = 0;
@@ -23,7 +29,7 @@ export class Engine {
     private objectSelector: ObjectSelector;
 
     private showAABB = false;
-    private showRays = true;
+    private showTexture = false;
 
     constructor(canvasId: string, scene: Scene) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
@@ -60,6 +66,9 @@ export class Engine {
             camera.getProjection(),
             camera.getView()
         );
+        this.shadowMapProgram = new ShadowMapProgram(this.webgl);
+        this.shadowAtlasProgram = new ShadowAtlasProgram(this.webgl);
+        this.textureShowProgram = new TextureShowProgram(this.webgl);
 
         this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
         this.webgl.clear(
@@ -78,6 +87,10 @@ export class Engine {
 
     public setShowAABB(bool: boolean) {
         this.showAABB = bool;
+    }
+
+    public setShowTexture(bool: boolean) {
+        this.showTexture = bool;
     }
 
     private generateTexturesForObjects() {
@@ -116,95 +129,30 @@ export class Engine {
 
         this.clear();
 
-        const camera = this.scene.getCamera();
-        const objects = this.scene.getObjects();
+        this.shadowMapProgram.draw(this.scene);
+        this.shadowAtlasProgram.draw(this.scene);
 
-        this.triangleProgram.useProgram();
-        this.triangleProgram.updateView(camera.getView());
-
-        objects.forEach((object) => {
-            if (object.isSingleFace()) {
-                this.disableCullFace();
-            } else {
-                this.enableCullFace();
-            }
-
-            object.getMeshes().forEach((mesh) => {
-                const isLight = Boolean(mesh.getLight());
-                const primitives = mesh.getPrimitives();
-                primitives.forEach((prim) => {
-                    const material = prim.getMaterial();
-
-                    const useTexture = Boolean(material.baseTexture);
-                    const boneMatrices = mesh.getSkeleton()?.matrices;
-                    const useBones = !!boneMatrices;
-
-                    this.triangleProgram.setVariables({
-                        useBones,
-                        bonesDataTexture: mesh.getBonesDataTexture(),
-                        bonesCount: mesh.getSkeletonBonesCount(),
-                        scene: this.scene,
-                        useTexture,
-                        useLight: !isLight,
-                        bonesMatrices: mesh.getSkeleton()?.matrices ?? null,
-                        colorFactor: material.colorFactor,
-                        objectTexture: material.baseTexture,
-                        indices: prim.getIndices(),
-                        joints: prim.getJoints(),
-                        normals: prim.getNormals(),
-                        textureCoords: prim.getTextureCoords(),
-                        vertices: prim.getVertices(),
-                        weights: prim.getWeights(),
-                        modelMatrix: object.getModelMatrix(),
-                        normalMatrix: object.getNormalMatrix(),
-                        cameraPosition: new Float32Array(camera.getPosition()),
-                    });
-                    this.triangleProgram.draw(prim.getIndices());
-                });
+        if (this.showTexture) {
+            this.textureShowProgram.draw({
+                width: this.canvas.width,
+                height: this.canvas.height,
+                // texture: this.shadowMapProgram
+                //     .getShadowMapTexture()
+                //     .getTexture(),
+                texture: this.shadowAtlasProgram.getAtlasTexture().getTexture(),
             });
-        });
-
-        if (this.showAABB || this.showRays) {
-            this.lineProgram.useProgram();
-            this.lineProgram.updateView(camera.getView());
+        } else {
+            this.triangleProgram.draw(
+                this.canvas.width,
+                this.canvas.height,
+                this.scene,
+                this.shadowAtlasProgram,
+                this.shadowMapProgram
+            );
         }
 
         if (this.showAABB) {
-            const selectedObject = this.objectSelector.getSelected();
-
-            objects.forEach((object) => {
-                const modelMatrix = object.getModelMatrix();
-                const isSelected = selectedObject?.object === object;
-
-                const aabb = object.getAABB();
-                const aabbIndices = aabb.getIndices();
-
-                this.lineProgram.setVariables(
-                    aabb.getVertices(),
-                    aabbIndices,
-                    modelMatrix,
-                    isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
-                );
-                this.lineProgram.draw(aabbIndices);
-            });
-        }
-
-        if (this.showRays) {
-            const rays = this.objectSelector.getRays();
-            const modelMatrix = mat4.create();
-            mat4.identity(modelMatrix);
-
-            rays.forEach((ray) => {
-                const lineToDraw = ray.getLine();
-                this.lineProgram.setVariables(
-                    lineToDraw.vertices,
-                    lineToDraw.indices,
-                    modelMatrix,
-                    [0.0, 0.0, 1.0, 1.0]
-                );
-
-                this.lineProgram.draw(lineToDraw.indices);
-            });
+            this.lineProgram.draw(this.scene, this.objectSelector);
         }
 
         const fpsElement = document.getElementById("fps");
@@ -223,7 +171,7 @@ export class Engine {
 
     private clear() {
         // this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
-        this.webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+        this.webgl.clearColor(0, 0, 0, 1);
         this.webgl.clear(
             this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT
         );

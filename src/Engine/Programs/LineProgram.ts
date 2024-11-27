@@ -6,6 +6,8 @@ import { ArrayBuffer } from "./Buffer/ArrayBuffer";
 import { ElementBuffer } from "./Buffer/ElementBuffer";
 import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
 import { Uniform4fv } from "./Uniform/Uniform4fv";
+import { Scene } from "../Scene";
+import { ObjectSelector } from "../ObjectSelector";
 
 export type LineProgramVertices = Float32Array;
 export type LineProgramIndices = Uint16Array;
@@ -26,13 +28,56 @@ export class LineProgram extends Program {
         this.matrixInit(perspective, view);
     }
 
-    public draw(indices: Uint16Array) {
-        this.webgl.drawElements(
-            this.webgl.LINES,
-            indices.length,
-            this.webgl.UNSIGNED_SHORT,
-            0
-        );
+    public draw(scene: Scene, objectSelector: ObjectSelector) {
+        this.useProgram();
+        this.updateView(scene.getCamera().getView());
+
+        const selectedObject = objectSelector.getSelected();
+        const objects = scene.getObjects();
+
+        objects.forEach((object) => {
+            const modelMatrix = object.getModelMatrix();
+            const isSelected = selectedObject?.object === object;
+
+            const aabb = object.getAABB();
+            const aabbIndices = aabb.getIndices();
+
+            this.setVariables(
+                aabb.getVertices(),
+                aabbIndices,
+                modelMatrix,
+                isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
+            );
+
+            this.webgl.drawElements(
+                this.webgl.LINES,
+                aabbIndices.length,
+                this.webgl.UNSIGNED_SHORT,
+                0
+            );
+        });
+
+        const rays = objectSelector.getRays();
+
+        const modelMatrix = mat4.create();
+        mat4.identity(modelMatrix);
+
+        rays.forEach((ray) => {
+            const lineToDraw = ray.getLine();
+            this.setVariables(
+                lineToDraw.vertices,
+                lineToDraw.indices,
+                modelMatrix,
+                [0.0, 0.0, 1.0, 1.0]
+            );
+
+            this.webgl.drawElements(
+                this.webgl.LINES,
+                lineToDraw.indices.length,
+                this.webgl.UNSIGNED_SHORT,
+                0
+            );
+        });
     }
 
     public updateView(view: mat4) {

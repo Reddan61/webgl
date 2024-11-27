@@ -29,6 +29,8 @@ export class Program {
                 this.webgl.LINK_STATUS
             )
         ) {
+            const errorLog = this.webgl.getProgramInfoLog(this.program);
+            console.error(errorLog);
             throw new Error("Unable to initialize the shader program");
         }
     }

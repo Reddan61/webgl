@@ -11,6 +11,7 @@ export const vertexShader = `#version 300 es
   uniform mat4 transformation;
   uniform mat4 view;
   uniform mat4 projection;
+  uniform mat4 lightSpaceMatrix;
   uniform bool useBones;
 
   uniform sampler2D bonesDataTexture;
@@ -19,6 +20,7 @@ export const vertexShader = `#version 300 es
   out vec2 fragTextureCoords;
   out vec3 fragNormal;
   out vec3 fragPosition;
+  out vec4 fragPositionLightSpace;
 
   #define ROW0_U ((0.5 + 0.0) / 4.)
   #define ROW1_U ((0.5 + 1.0) / 4.)
@@ -31,7 +33,8 @@ export const vertexShader = `#version 300 es
       texture(bonesDataTexture, vec2(ROW0_U, v)),
       texture(bonesDataTexture, vec2(ROW1_U, v)),
       texture(bonesDataTexture, vec2(ROW2_U, v)),
-      texture(bonesDataTexture, vec2(ROW3_U, v)));
+      texture(bonesDataTexture, vec2(ROW3_U, v))
+    );
   }
 
   void main(void) {
@@ -50,5 +53,7 @@ export const vertexShader = `#version 300 es
       gl_Position = projection * view * transformation * vec4(vertexPosition, 1.0);
       fragPosition = (transformation * vec4(vertexPosition, 1.0)).xyz;
     }
+
+    fragPositionLightSpace = lightSpaceMatrix * vec4(fragPosition, 1.0);
   }
 `;

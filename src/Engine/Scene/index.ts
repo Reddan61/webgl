@@ -1,3 +1,4 @@
+import { vec4 } from "gl-matrix";
 import { Camera } from "../Camera";
 import { AmbientLight } from "../Light/AmbientLight";
 import { DirectionalLight } from "../Light/DirectionalLight";
@@ -74,15 +75,10 @@ export class Scene {
     public update(delta: number) {
         this.camera.update(delta);
         this.objects.forEach((object) => object.update());
-
-        if (this.pointLightsChanged) {
-            this.updatePointLightsDataTexture();
-            this.pointLightsChanged = false;
-        }
     }
 
     private onUpdatePointLight() {
-        this.pointLightsChanged = true;
+        this.updatePointLightsDataTexture();
     }
 
     private updatePointLightsDataTexture() {
@@ -96,13 +92,35 @@ export class Scene {
             const color = light.getColor() as number[];
             const position = light.getPosition() as number[];
             const bright = light.getBright();
+            const { offset, scale } = light._getAtlas();
 
-            data.push(...color, 1.0, ...position, bright);
+            data.push(
+                ...(vec4.fromValues(
+                    color[0],
+                    color[1],
+                    color[2],
+                    1.0
+                ) as number[]),
+                ...(vec4.fromValues(
+                    position[0],
+                    position[1],
+                    position[2],
+                    bright
+                ) as number[]),
+                ...(vec4.fromValues(0, 0, 0, light.getFarPlane()) as number[]),
+                ...(vec4.fromValues(
+                    offset[0],
+                    offset[1],
+                    scale[0],
+                    scale[1]
+                ) as number[])
+            );
         });
 
         const result = new Float32Array(data);
 
-        // 1 texel - color(vec4, a = 1.0), 2 texel - position(vec3) + bright
-        this.pointLightsDataTexture.setData(result, lights.length * 2, 1);
+        // 1 texel - vec4(color, 1.0), 2 texel - vec4(position, bright), 3 texel - vec4(empty, farPlane);
+        // 4 texel - vec4(vec2(atlasOffset), vec2(atlasScale))
+        this.pointLightsDataTexture.setData(result, lights.length * 4, 1);
     }
 }

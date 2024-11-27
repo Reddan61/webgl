@@ -1,4 +1,4 @@
-import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
+import { mat4, quat, vec3 } from "gl-matrix";
 
 export class Rotation {
     constructor() {
@@ -88,7 +88,5 @@ export class Rotation {
     private xAngle = 0;
     private yAngle = 0;
 
-    private xRotation = mat4.create();
-    private yRotation = mat4.create();
     private rotation = mat4.create();
 }

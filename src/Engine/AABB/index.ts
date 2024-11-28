@@ -6,9 +6,9 @@ export class AABB {
     private max: vec3;
     private min: vec3;
 
-    constructor(max: number[], min: number[]) {
-        this.max = max as vec3;
-        this.min = min as vec3;
+    constructor(max: vec3, min: vec3) {
+        this.max = max;
+        this.min = min;
 
         this.createGeometry();
     }
@@ -18,6 +18,33 @@ export class AABB {
             min: this.min,
             max: this.max,
         };
+    }
+
+    public getCorners() {
+        return [
+            vec3.fromValues(this.min[0], this.min[1], this.min[2]),
+            vec3.fromValues(this.min[0], this.min[1], this.max[2]),
+            vec3.fromValues(this.min[0], this.max[1], this.min[2]),
+            vec3.fromValues(this.min[0], this.max[1], this.max[2]),
+            vec3.fromValues(this.max[0], this.min[1], this.min[2]),
+            vec3.fromValues(this.max[0], this.min[1], this.max[2]),
+            vec3.fromValues(this.max[0], this.max[1], this.min[2]),
+            vec3.fromValues(this.max[0], this.max[1], this.max[2]),
+        ];
+    }
+
+    public minMaxAABB(aabb: AABB) {
+        const { max, min } = aabb.getMaxMin();
+        this.checkMin(min);
+        this.checkMax(max);
+    }
+
+    public checkMin(min: vec3) {
+        vec3.min(this.min, this.min, min);
+    }
+
+    public checkMax(max: vec3) {
+        vec3.max(this.max, this.max, max);
     }
 
     public getVertices() {

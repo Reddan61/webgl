@@ -1,13 +1,8 @@
 import { mat4, vec3 } from "gl-matrix";
 import { MeshPrimitive } from "../MeshPrimitive";
-import { Bone } from "../Bones/Bones";
 import { AABB } from "../AABB";
 import { PointLight } from "../Light/PointLight";
-import { DataTexture } from "../Programs/Texture/DataTexture";
-
-interface MeshSekeleton {
-    matrices: Float32Array;
-}
+import { Skeleton } from "../Skeleton";
 
 export class Mesh {
     private webgl: WebGL2RenderingContext | null = null;
@@ -15,38 +10,27 @@ export class Mesh {
     private aabb: AABB;
 
     private primitives: MeshPrimitive[] = [];
-    private bonesIndexes: number[];
-    private inverseBindMatrices: number[];
-    private bones: Bone[] = [];
-    private skeleton: MeshSekeleton | null = null;
-    private skeletonDataTexture: DataTexture | null = null;
+    private skeleton: Skeleton | null = null;
 
     private light: PointLight | null = null;
 
-    constructor(
-        primitives: MeshPrimitive[],
-        skeleton: {
-            bonesIndexes: number[];
-            inverseBindMatrices: number[];
-        } | null = null,
-        bones: Bone[] = []
-    ) {
-        this.bones = bones;
-        this.bonesIndexes = skeleton?.bonesIndexes ?? [];
-        this.inverseBindMatrices = skeleton?.inverseBindMatrices ?? [];
+    private modelMatrix = mat4.create();
+
+    constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
+        this.skeleton = skeleton;
         this.primitives = primitives;
 
         this.createAABB();
-        this.calculateBones();
     }
 
     public _setWebGl(webgl: WebGL2RenderingContext) {
         this.webgl = webgl;
-        this.skeletonDataTexture = new DataTexture(this.webgl);
+        this.skeleton?._setWebGl(webgl);
     }
 
     public update() {
-        this.calculateBones();
+        this.skeleton?.update();
+        this.createAABB();
     }
 
     public setLight(light: PointLight | null) {
@@ -55,10 +39,6 @@ export class Mesh {
 
     public getLight() {
         return this.light;
-    }
-
-    public getBonesDataTexture() {
-        return this.skeletonDataTexture;
     }
 
     public getPrimitives() {
@@ -73,72 +53,117 @@ export class Mesh {
         return this.skeleton;
     }
 
-    public getSkeletonBonesCount() {
-        return this.bonesIndexes.length;
+    public setSkeleton(skeleton: Skeleton | null) {
+        this.skeleton = skeleton;
+        this.createAABB();
     }
 
-    private calculateBones() {
-        const numBones = this.getSkeletonBonesCount();
-
-        if (numBones === 0) {
-            this.skeleton = null;
-            return;
-        }
-
-        const skinningsMatrices: Float32Array = new Float32Array(16 * numBones);
-
-        for (let i = 0; i < numBones; i++) {
-            const bone = this.bones[this.bonesIndexes[i]];
-            const start = i * 16;
-            const end = start + 16;
-
-            const inverseBindMatrix = new Float32Array(
-                this.inverseBindMatrices.slice(start, end)
-            );
-
-            const skinningMatrix = mat4.create();
-            mat4.multiply(
-                skinningMatrix,
-                bone.getWorldMatrix(),
-                inverseBindMatrix
-            );
-
-            skinningsMatrices.set(skinningMatrix, start);
-        }
-
-        this.skeleton = {
-            matrices: skinningsMatrices,
-        };
-
-        // 1 matrice row = 1 texel (RGBA = vec4)
-        this.skeletonDataTexture?.update(skinningsMatrices, 4, numBones);
+    public setModelMatrix(matrix: mat4) {
+        this.modelMatrix = matrix;
+        this.createAABB();
     }
 
-    private createAABB() {
-        let max = null as vec3 | null;
-        let min = null as vec3 | null;
+    public getModelMatrix() {
+        return this.modelMatrix;
+    }
 
-        this.primitives.forEach((prim) => {
-            const aabb = prim.getAABB();
-            const maxMin = aabb.getMaxMin();
+    private _getSkinnedAABBFromPrimitives() {
+        if (!this.skeleton) {
+            return null;
+        }
 
-            if (max && min) {
-                vec3.max(max, max, maxMin.max);
-                vec3.min(min, min, maxMin.min);
-            } else {
-                max = vec3.fromValues(
-                    maxMin.max[0],
-                    maxMin.max[1],
-                    maxMin.max[2]
+        const skinningMatrices = this.skeleton.getSkinningMatrices();
+
+        const aabb = new AABB(
+            vec3.fromValues(-Infinity, -Infinity, -Infinity),
+            vec3.fromValues(Infinity, Infinity, Infinity)
+        );
+
+        this.primitives.forEach((primitive) => {
+            const vertices = primitive.getVertices();
+            const joints = primitive.getJoints();
+            const weights = primitive.getWeights();
+
+            for (let i = 0; i < vertices.length / 3; i++) {
+                const offset = i * 3;
+                const vertex = vec3.fromValues(
+                    vertices[offset],
+                    vertices[offset + 1],
+                    vertices[offset + 2]
                 );
-                min = vec3.fromValues(
-                    maxMin.min[0],
-                    maxMin.min[1],
-                    maxMin.min[2]
-                );
+
+                const transformedVertex = vec3.create();
+
+                for (let j = 0; j < 4; j++) {
+                    const jOffset = i * 4 + j;
+
+                    const weight = weights[jOffset];
+                    const joint = joints[jOffset];
+
+                    if (weight > 0) {
+                        const start = joint * 16;
+                        const jointMatrix = skinningMatrices.slice(
+                            start,
+                            start + 16
+                        );
+
+                        const localVertex = vec3.create();
+                        vec3.transformMat4(localVertex, vertex, jointMatrix);
+
+                        vec3.scaleAndAdd(
+                            transformedVertex,
+                            transformedVertex,
+                            localVertex,
+                            weight
+                        );
+                    }
+                }
+
+                aabb.checkMin(transformedVertex);
+                aabb.checkMax(transformedVertex);
             }
         });
 
-        this.aabb = new AABB(max as number[], min as number[]);
+        return aabb;
+    }
+
+    private createAABB() {
+        const skinnedAABB = this._getSkinnedAABBFromPrimitives();
+
+        if (skinnedAABB) {
+            this.aabb = skinnedAABB;
+
+            return;
+        }
+
+        const primitiveAABB = new AABB(
+            vec3.fromValues(-Infinity, -Infinity, -Infinity),
+            vec3.fromValues(Infinity, Infinity, Infinity)
+        );
+
+        this.primitives.forEach((primitive) => {
+            const aabb = primitive.getAABB();
+            primitiveAABB.minMaxAABB(aabb);
+        });
+
+        const corners = primitiveAABB.getCorners();
+
+        const resultAABB = new AABB(
+            vec3.fromValues(-Infinity, -Infinity, -Infinity),
+            vec3.fromValues(Infinity, Infinity, Infinity)
+        );
+
+        corners.forEach((corner) => {
+            const transformedCorner = vec3.transformMat4(
+                vec3.create(),
+                corner,
+                this.modelMatrix
+            );
+
+            resultAABB.checkMax(transformedCorner);
+            resultAABB.checkMin(transformedCorner);
+        });
+
+        this.aabb = resultAABB;
     }
 }

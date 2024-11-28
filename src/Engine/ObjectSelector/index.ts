@@ -1,4 +1,4 @@
-import { mat4, vec3, vec4 } from "gl-matrix";
+import { vec3, vec4 } from "gl-matrix";
 import { Camera } from "../Camera";
 import { Object } from "../Object";
 import { Ray } from "../Ray";
@@ -67,8 +67,8 @@ export class ObjectSelector {
             );
 
             const hitAABB = new AABB(
-                vec3.fromValues(convMax[0], convMax[1], convMax[2]) as number[],
-                vec3.fromValues(convMin[0], convMin[1], convMin[2]) as number[]
+                vec3.fromValues(convMax[0], convMax[1], convMax[2]),
+                vec3.fromValues(convMin[0], convMin[1], convMin[2])
             );
 
             const hit = this.aabbHit(ray, hitAABB);

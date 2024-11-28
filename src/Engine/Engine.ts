@@ -99,15 +99,16 @@ export class Engine {
                 const primitives = mesh.getPrimitives();
                 primitives.forEach((prim) => {
                     const material = prim.getMaterial();
+                    const image = material.getImage();
 
-                    if (!material.baseImage) return;
+                    if (!image) return;
 
                     const texture = this.createObjectTexture(
-                        material.baseImage,
+                        image,
                         object.isFlipYTexture()
                     );
 
-                    prim.setTexture(texture);
+                    material.setTexture(texture);
                 });
             });
         });

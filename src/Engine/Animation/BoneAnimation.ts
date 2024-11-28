@@ -44,6 +44,11 @@ export class BoneAnimation {
             const { input, output } = this.samplers[sampler];
 
             const animationLength = input.max[0] - input.min[0];
+
+            if (animationLength <= 0) {
+                continue;
+            }
+
             const animationTime = currentTime % animationLength;
             let previousTimeIndex = 0;
 
@@ -63,6 +68,7 @@ export class BoneAnimation {
 
             const bone = bones[boneIndex];
             let newTranslation = null as vec3 | null;
+            let newScale = null as vec3 | null;
             let newRotation = null as vec4 | null;
             let isUpdated = false;
 
@@ -116,13 +122,37 @@ export class BoneAnimation {
                 isUpdated = true;
             }
 
-            bone.setTranslationNRotation(
+            if (path === ANIMATION_PATH.SCALE) {
+                const prevScaleStart = previousTimeIndex * 3;
+                const nextScaleStart = nextTimeIndex * 3;
+                const prevScale = vec3.fromValues(
+                    output.data[prevScaleStart],
+                    output.data[prevScaleStart + 1],
+                    output.data[prevScaleStart + 2]
+                );
+                const nextScale = vec3.fromValues(
+                    output.data[nextScaleStart],
+                    output.data[nextScaleStart + 1],
+                    output.data[nextScaleStart + 2]
+                );
+                const currentScale = vec3.create();
+
+                vec3.subtract(currentScale, nextScale, prevScale);
+                vec3.scale(currentScale, currentScale, interpolationValue);
+                vec3.add(currentScale, prevScale, currentScale);
+
+                newScale = currentScale;
+                isUpdated = true;
+            }
+
+            bone.setTRS(
                 newTranslation ?? undefined,
-                newRotation ?? undefined
+                newRotation ?? undefined,
+                newScale ?? undefined
             );
 
             if (isUpdated) {
-                bone.update(bones);
+                bone.update();
             }
         }
     }

@@ -1,5 +1,5 @@
 import { parseObj, ParseOBJResult } from "./OBJ";
-import { parseGLTF, ParsedGLTF } from "./GLTF";
+import { parseGLTF } from "./GLTF";
 import { vec3 } from "gl-matrix";
 
 export const loadImage = async (url: string): Promise<HTMLImageElement> => {
@@ -22,7 +22,7 @@ export const loadObj = async (url: string): Promise<ParseOBJResult> => {
     });
 };
 
-export const loadGLTF = (url: string): Promise<ParsedGLTF> => {
+export const loadGLTF = (url: string): ReturnType<typeof parseGLTF> => {
     return new Promise((resolve) => {
         fetch(url)
             .then((res) => res.json())

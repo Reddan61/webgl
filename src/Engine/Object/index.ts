@@ -128,6 +128,7 @@ export class Object {
     public update() {
         this.animations.forEach((animation) => animation.update(this.bones));
         this.meshes.forEach((mesh) => mesh.update());
+        this.createAABB();
     }
 
     private calculateMatrix() {
@@ -144,30 +145,17 @@ export class Object {
     }
 
     private createAABB() {
-        let max = null as vec3 | null;
-        let min = null as vec3 | null;
+        let max = vec3.fromValues(-Infinity, -Infinity, -Infinity);
+        let min = vec3.fromValues(Infinity, Infinity, Infinity);
 
         this.meshes.forEach((mesh) => {
             const aabb = mesh.getAABB();
             const maxMin = aabb.getMaxMin();
 
-            if (max && min) {
-                vec3.max(max, max, maxMin.max);
-                vec3.min(min, min, maxMin.min);
-            } else {
-                max = vec3.fromValues(
-                    maxMin.max[0],
-                    maxMin.max[1],
-                    maxMin.max[2]
-                );
-                min = vec3.fromValues(
-                    maxMin.min[0],
-                    maxMin.min[1],
-                    maxMin.min[2]
-                );
-            }
+            vec3.max(max, max, maxMin.max);
+            vec3.min(min, min, maxMin.min);
         });
 
-        this.aabb = new AABB(max as number[], min as number[]);
+        this.aabb = new AABB(max, min);
     }
 }

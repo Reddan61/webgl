@@ -54,7 +54,7 @@ export const fragmentShader = `#version 300 es
     float currentDepth = projCoords.z;
     float pcfDepth = texture(shadowMap, projCoords.xy).r;
 
-    float bias = max(0.025f * (1.0f - dot(fragNormal, directionalLight.direction)), 0.005);
+    float bias = max(0.0025f * (1.0f - dot(fragNormal, directionalLight.direction)), 0.001);
     float shadow = 0.0;
 
     if(currentDepth > pcfDepth + bias) {

@@ -92,36 +92,50 @@ export class TriangleProgram extends Program {
                 this.enableCullFace();
             }
 
+            const objectModelMatrix = object.getModelMatrix();
+
             object.getMeshes().forEach((mesh) => {
                 const isLight = Boolean(mesh.getLight());
                 const primitives = mesh.getPrimitives();
+                const skeleton = mesh.getSkeleton();
+                const boneMatrices = skeleton?.getSkinningMatrices();
+                const useBones = !!boneMatrices;
+
+                const modelMatrix =
+                    skeleton === null
+                        ? mat4.multiply(
+                              mat4.create(),
+                              objectModelMatrix,
+                              mesh.getModelMatrix()
+                          )
+                        : objectModelMatrix;
+
                 primitives.forEach((prim) => {
                     const material = prim.getMaterial();
 
-                    const useTexture = Boolean(material.baseTexture);
-                    const boneMatrices = mesh.getSkeleton()?.matrices;
-                    const useBones = !!boneMatrices;
+                    const useTexture = Boolean(material.getTexture());
 
                     this.setVariables({
                         useBones,
                         scene,
-                        bonesDataTexture: mesh.getBonesDataTexture(),
-                        bonesCount: mesh.getSkeletonBonesCount(),
+                        modelMatrix,
+                        bonesDataTexture:
+                            skeleton?.getBonesDataTexture() ?? null,
+                        bonesCount: skeleton?.getBonesCount() ?? 0,
                         shadowMapTexture:
                             shadowMapProgram.getShadowMapTexture(),
                         shadowAtlasTexture:
                             shadowAtlasProgram.getAtlasTexture(),
                         useTexture,
                         useLight: !isLight,
-                        colorFactor: material.colorFactor,
-                        objectTexture: material.baseTexture,
+                        colorFactor: material.getColor(),
+                        objectTexture: material.getTexture(),
                         indices: prim.getIndices(),
                         joints: prim.getJoints(),
                         normals: prim.getNormals(),
                         textureCoords: prim.getTextureCoords(),
                         vertices: prim.getVertices(),
                         weights: prim.getWeights(),
-                        modelMatrix: object.getModelMatrix(),
                         normalMatrix: object.getNormalMatrix(),
                         cameraPosition: new Float32Array(camera.getPosition()),
                     });

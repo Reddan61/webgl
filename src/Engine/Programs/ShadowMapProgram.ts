@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat4 } from "gl-matrix";
 import { DirectionalLight } from "../Light/DirectionalLight";
 import { shadowFragmentShader } from "../shaders/shadow/DirectionalLight/fragment";
 import { shadowVertexShader } from "../shaders/shadow/DirectionalLight/vertex";
@@ -8,6 +8,9 @@ import { DataTexture } from "./Texture/DataTexture";
 import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
 import { ElementBuffer } from "./Buffer/ElementBuffer";
 import { Scene } from "../Scene";
+import { Uniform1f } from "./Uniform/Uniform1f";
+import { Uniform1i } from "./Uniform/Uniform1i";
+import { TextureUniform } from "./Uniform/TextureUniform";
 
 export class ShadowMapProgram extends Program {
     private SHADOW_MAP_WIDTH = 2048;
@@ -17,10 +20,16 @@ export class ShadowMapProgram extends Program {
     private shadowFrameBuffer: WebGLFramebuffer;
 
     private vertexBuffer: ArrayBuffer;
+    private weightsBuffer: ArrayBuffer;
+    private bonesIndexesBuffer: ArrayBuffer;
     private indicesBuffer: ElementBuffer;
 
     private lightSpaceMatrixUniform: UniformMatrix4fv;
     private modelMatrixUniform: UniformMatrix4fv;
+
+    private useBonesUniform: Uniform1i;
+    private bonesDataTextureUniform: TextureUniform;
+    private bonesCountUniform: Uniform1f;
 
     constructor(webgl: WebGL2RenderingContext) {
         super(webgl);
@@ -74,15 +83,36 @@ export class ShadowMapProgram extends Program {
         this.bind();
 
         scene.getObjects().forEach((object) => {
+            const objectModelMatrix = object.getModelMatrix();
+
             object.getMeshes().forEach((mesh) => {
-                if (mesh.getLight()) return;
+                if (mesh.getLight()) return null;
+
+                const skeleton = mesh.getSkeleton();
+                const boneMatrices = skeleton?.getSkinningMatrices();
+                const useBones = !!boneMatrices;
+
+                const modelMatrix =
+                    skeleton === null
+                        ? mat4.multiply(
+                              mat4.create(),
+                              objectModelMatrix,
+                              mesh.getModelMatrix()
+                          )
+                        : objectModelMatrix;
 
                 mesh.getPrimitives().forEach((prim) => {
                     this.setVariables({
+                        useBones,
+                        modelMatrix,
                         indices: prim.getIndices(),
-                        directionalLight: scene.getDirectionalLight(),
-                        modelMatrix: object.getModelMatrix(),
+                        joints: prim.getJoints(),
+                        weights: prim.getWeights(),
                         vertices: prim.getVertices(),
+                        directionalLight: scene.getDirectionalLight(),
+                        bonesDataTexture:
+                            skeleton?.getBonesDataTexture() ?? null,
+                        bonesCount: skeleton?.getBonesCount() ?? 0,
                     });
 
                     this.webgl.drawElements(
@@ -121,17 +151,35 @@ export class ShadowMapProgram extends Program {
         vertices,
         modelMatrix,
         directionalLight,
+        bonesCount,
+        bonesDataTexture,
+        joints,
+        useBones,
+        weights,
     }: {
         indices: Uint16Array;
         vertices: Float32Array;
+        joints: Float32Array;
+        weights: Float32Array;
         modelMatrix: mat4;
         directionalLight: DirectionalLight;
+        useBones: boolean;
+        bonesCount: number;
+        bonesDataTexture: DataTexture | null;
     }) {
         this.indicesBuffer.setBufferData(indices);
         this.vertexBuffer.setBufferData(vertices);
+        this.weightsBuffer.setBufferData(weights);
+        this.bonesIndexesBuffer.setBufferData(joints);
 
         this.lightSpaceMatrixUniform.setData(directionalLight.getLightMatrix());
         this.modelMatrixUniform.setData(modelMatrix);
+
+        this.useBonesUniform.setData(Number(useBones));
+        this.bonesDataTextureUniform.setData(
+            bonesDataTexture?.getTexture() ?? null
+        );
+        this.bonesCountUniform.setData(bonesCount);
     }
 
     public getShadowMapTexture() {
@@ -148,6 +196,22 @@ export class ShadowMapProgram extends Program {
             3,
             this.webgl.FLOAT
         );
+
+        this.weightsBuffer = new ArrayBuffer(
+            this.webgl,
+            this.program,
+            "weight",
+            4,
+            this.webgl.FLOAT
+        );
+
+        this.bonesIndexesBuffer = new ArrayBuffer(
+            this.webgl,
+            this.program,
+            "boneIndexes",
+            4,
+            this.webgl.FLOAT
+        );
     }
 
     private initUniforms() {
@@ -161,9 +225,31 @@ export class ShadowMapProgram extends Program {
             this.program,
             "modelMatrix"
         );
+
+        this.useBonesUniform = new Uniform1i(
+            this.webgl,
+            this.program,
+            "useBones"
+        );
+
+        this.bonesDataTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "bonesDataTexture",
+            2,
+            this.webgl.TEXTURE2
+        );
+
+        this.bonesCountUniform = new Uniform1f(
+            this.webgl,
+            this.program,
+            "numBones"
+        );
     }
 
     private setAttributes() {
         this.vertexBuffer.setAttributes();
+        this.weightsBuffer.setAttributes();
+        this.bonesIndexesBuffer.setAttributes();
     }
 }

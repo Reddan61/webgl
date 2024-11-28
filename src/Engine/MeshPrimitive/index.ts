@@ -1,6 +1,7 @@
-import { vec4 } from "gl-matrix";
+import { vec3, vec4 } from "gl-matrix";
 import { AABB } from "../AABB";
 import { ImageTexture } from "../Programs/Texture/ImageTexture";
+import { Material } from "../Material";
 
 export interface MeshPrimitiveConstructor {
     vertices: {
@@ -34,7 +35,7 @@ export class MeshPrimitive {
     private weight: Float32Array;
     private joints: Float32Array;
 
-    private material: MeshPrimitiveMaterial;
+    private material: Material;
 
     private aabb: AABB;
 
@@ -47,7 +48,7 @@ export class MeshPrimitive {
             joints,
             weight,
         }: MeshPrimitiveConstructor,
-        { baseImage, colorFactor }: MaterialConstructor
+        material = new Material()
     ) {
         this.vertices = new Float32Array(vertices.data);
         this.indices = new Uint16Array(indices);
@@ -60,13 +61,9 @@ export class MeshPrimitive {
             joints ?? this.generateDataForVertexLength(vertices.data)
         );
 
-        this.material = {
-            baseImage,
-            colorFactor,
-            baseTexture: null,
-        };
+        this.material = material;
 
-        this.aabb = new AABB(vertices.max, vertices.min);
+        this.aabb = new AABB(vertices.max as vec3, vertices.min as vec3);
     }
 
     private generateDataForVertexLength(vertices: number[]) {
@@ -93,8 +90,8 @@ export class MeshPrimitive {
         return this.material;
     }
 
-    public setTexture(texture: ImageTexture | null) {
-        this.material.baseTexture = texture;
+    public setMaterial(material: Material) {
+        this.material = material;
     }
 
     public getIndices() {

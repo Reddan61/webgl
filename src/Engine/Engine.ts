@@ -76,6 +76,13 @@ export class Engine {
         );
         this.webgl.enable(this.webgl.DEPTH_TEST);
         this.webgl.depthFunc(this.webgl.LESS);
+
+        this.webgl.enable(this.webgl.BLEND);
+        this.webgl.blendFunc(
+            this.webgl.SRC_ALPHA,
+            this.webgl.ONE_MINUS_SRC_ALPHA
+        );
+
         this.enableCullFace();
         this.generateTexturesForObjects();
         this.subscribe();

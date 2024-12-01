@@ -130,20 +130,19 @@ const parseTexture = (
     return null;
 };
 
-interface ParseMaterial {
-    colorFactor: vec4;
-    texture: HTMLImageElement | null;
-}
-
 const parseMaterial = (
     gltf: GLTF,
     images: HTMLImageElement[],
     materialIndex: number
 ): Material => {
     const { materials } = gltf;
-    const { pbrMetallicRoughness } = materials[materialIndex];
+    const { pbrMetallicRoughness, alphaCutoff, alphaMode } =
+        materials[materialIndex];
 
-    const material = new Material();
+    const material = new Material({
+        alphaCutoff,
+        alphaMode,
+    });
 
     if (pbrMetallicRoughness) {
         const { baseColorTexture, baseColorFactor = [1, 1, 1, 1] } =

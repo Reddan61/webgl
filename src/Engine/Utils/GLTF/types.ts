@@ -1,4 +1,5 @@
 import { mat4, vec3, vec4 } from "gl-matrix";
+import { MATERIAL_ALPHA_MODE } from "../../Material";
 
 export enum ACCESSOR_TYPE {
     SCALAR = "SCALAR",
@@ -177,7 +178,7 @@ interface GLTFMaterial {
     // default [0, 0, 0]
     emissiveFactor?: vec3;
     // default OPAQUE
-    alphaMode?: string;
+    alphaMode?: MATERIAL_ALPHA_MODE;
     // default 0.5
     alphaCutoff?: number;
     // default false

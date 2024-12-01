@@ -50,9 +50,14 @@ const createPointLight = (pointLight: PointLight) => {
                     min: sphere.min as number[],
                 },
             },
-            new Material(
-                vec4.fromValues(lightColor[0], lightColor[1], lightColor[2], 1)
-            )
+            new Material({
+                color: vec4.fromValues(
+                    lightColor[0],
+                    lightColor[1],
+                    lightColor[2],
+                    1
+                ),
+            })
         ),
     ]);
     mesh.setLight(pointLight);

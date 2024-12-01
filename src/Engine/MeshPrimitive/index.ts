@@ -48,7 +48,7 @@ export class MeshPrimitive {
             joints,
             weight,
         }: MeshPrimitiveConstructor,
-        material = new Material()
+        material = new Material({})
     ) {
         this.vertices = new Float32Array(vertices.data);
         this.indices = new Uint16Array(indices);

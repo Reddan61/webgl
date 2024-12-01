@@ -14,10 +14,9 @@ import { ImageTexture } from "./Texture/ImageTexture";
 import { TextureUniform } from "./Uniform/TextureUniform";
 import { Scene } from "../Scene";
 import { DataTexture } from "./Texture/DataTexture";
-import { CubeTextureUniform } from "./Uniform/CubeTextureUniform";
-import { CubeTexture } from "./Texture/CubeTexture";
 import { ShadowAtlasProgram } from "./ShadowAtlasProgram";
 import { ShadowMapProgram } from "./ShadowMapProgram";
+import { Material } from "../Material";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -50,6 +49,7 @@ export class TriangleProgram extends Program {
     private cameraPositionUniform: Uniform3fv;
 
     private colorFactorUniform: Uniform4fv;
+    private alphaCutoffUniform: Uniform1f;
 
     private normalMatUniform: UniformMatrix3fv;
     private transformationMatrix: UniformMatrix4fv;
@@ -113,9 +113,8 @@ export class TriangleProgram extends Program {
                 primitives.forEach((prim) => {
                     const material = prim.getMaterial();
 
-                    const useTexture = Boolean(material.getTexture());
-
                     this.setVariables({
+                        material,
                         useBones,
                         scene,
                         modelMatrix,
@@ -126,7 +125,6 @@ export class TriangleProgram extends Program {
                             shadowMapProgram.getShadowMapTexture(),
                         shadowAtlasTexture:
                             shadowAtlasProgram.getAtlasTexture(),
-                        useTexture,
                         useLight: !isLight,
                         colorFactor: material.getColor(),
                         objectTexture: material.getTexture(),
@@ -367,6 +365,12 @@ export class TriangleProgram extends Program {
             4,
             this.webgl.TEXTURE4
         );
+
+        this.alphaCutoffUniform = new Uniform1f(
+            this.webgl,
+            this.program,
+            "alphaCutoff"
+        );
     }
 
     private setVertexShaderBuffers({
@@ -374,7 +378,6 @@ export class TriangleProgram extends Program {
         normals,
         textureCoords,
         useBones,
-        useTexture,
         vertices,
         weights,
         indices,
@@ -389,8 +392,8 @@ export class TriangleProgram extends Program {
         shadowMapTexture,
         shadowAtlasTexture,
         bonesCount,
+        material,
     }: {
-        useTexture: boolean;
         useBones: boolean;
         indices: Uint16Array;
         vertices: Float32Array;
@@ -399,6 +402,7 @@ export class TriangleProgram extends Program {
         normals: Float32Array;
         textureCoords: Float32Array;
         scene: Scene;
+        material: Material;
         modelMatrix: mat4;
         normalMatrix: mat3;
         objectTexture: ImageTexture | null;
@@ -418,9 +422,13 @@ export class TriangleProgram extends Program {
         this.weightsBuffer.setBufferData(weights);
         this.bonesIndexesBuffer.setBufferData(joints);
 
+        const useTexture = Boolean(material.getTexture());
+
         this.useBonesUniform.setData(Number(useBones));
         this.useTextureUniform.setData(Number(useTexture));
         this.useLightUniform.setData(Number(useLight));
+
+        this.alphaCutoffUniform.setData(material.getAlphaCutoff());
 
         const ambientLight = scene.getAmbientLight();
         this.ambientLightBrightUniform.setData(ambientLight.getBright());

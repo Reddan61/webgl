@@ -39,6 +39,8 @@ export const fragmentShader = `#version 300 es
   uniform bool useLight;
   uniform vec3 cameraPosition;
 
+  uniform float alphaCutoff;
+
   uniform sampler2D objectTexture;
 
   uniform sampler2D pointLightsDataTexture;
@@ -217,6 +219,9 @@ export const fragmentShader = `#version 300 es
 
     if (useTexture) {
       vec4 texel = texture(objectTexture, fragTextureCoords);
+
+      texel.a *= step(alphaCutoff, texel.a);
+
       fragColor = vec4(texel.rgb * finalColor, texel.a);
     } else {
       fragColor = vec4(colorFactor.xyz * finalColor, colorFactor.w);

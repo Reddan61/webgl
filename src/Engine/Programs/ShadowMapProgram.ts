@@ -83,8 +83,6 @@ export class ShadowMapProgram extends Program {
         this.bind();
 
         scene.getObjects().forEach((object) => {
-            const objectModelMatrix = object.getModelMatrix();
-
             object.getMeshes().forEach((mesh) => {
                 if (mesh.getLight()) return null;
 
@@ -92,14 +90,7 @@ export class ShadowMapProgram extends Program {
                 const boneMatrices = skeleton?.getSkinningMatrices();
                 const useBones = !!boneMatrices;
 
-                const modelMatrix =
-                    skeleton === null
-                        ? mat4.multiply(
-                              mat4.create(),
-                              objectModelMatrix,
-                              mesh.getModelMatrix()
-                          )
-                        : objectModelMatrix;
+                const modelMatrix = object.getMeshModelMatrix(mesh);
 
                 mesh.getPrimitives().forEach((prim) => {
                     this.setVariables({

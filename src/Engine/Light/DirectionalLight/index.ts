@@ -39,10 +39,10 @@ export class DirectionalLight extends Light {
             upDirection
         );
 
-        const left = -50,
-            right = 50,
-            bottom = -50,
-            top = 50,
+        const left = -100,
+            right = 100,
+            bottom = -100,
+            top = 100,
             near = 0.1,
             far = 1000;
         const projectionMatrixLight = mat4.create();

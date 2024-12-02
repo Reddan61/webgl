@@ -131,6 +131,30 @@ export class Object {
         this.createAABB();
     }
 
+    public getMeshModelMatrix(mesh: Mesh) {
+        return mesh.getSkeleton() === null
+            ? // we need to mul because we dont have skinning in shaders
+              mat4.multiply(
+                  mat4.create(),
+                  this.getModelMatrix(),
+                  mesh.getModelMatrix()
+              )
+            : // it will transform with skinning matrix in shader
+              this.getModelMatrix();
+    }
+
+    public getMeshNormalMatrix(mesh: Mesh) {
+        return mesh.getSkeleton() === null
+            ? // we need to mul because we dont have skinning in shaders
+              mat3.multiply(
+                  mat3.create(),
+                  this.getNormalMatrix(),
+                  mesh.getNormalMatrix()
+              )
+            : // it will transform with skinning matrix in shader
+              this.getNormalMatrix();
+    }
+
     private calculateMatrix() {
         mat4.fromScaling(this.scalingMatrix, this.scaling);
         mat4.fromTranslation(this.translation, this.position);

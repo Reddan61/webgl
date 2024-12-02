@@ -84,7 +84,7 @@ const start = async () => {
 
     const wizard = await loadGLTF(wizardURL);
     wizard.rotate(0, -90);
-    // wizard.setPosition(vec3.fromValues(20, 0, 0));
+    wizard.setPosition(vec3.fromValues(20, 0, 0));
     wizard.setScaling(vec3.fromValues(10, 10, 10));
     wizard.setFlipYTexture(false);
 

@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat3, mat4, vec3 } from "gl-matrix";
 import { MeshPrimitive } from "../MeshPrimitive";
 import { AABB } from "../AABB";
 import { PointLight } from "../Light/PointLight";
@@ -15,6 +15,7 @@ export class Mesh {
     private light: PointLight | null = null;
 
     private modelMatrix = mat4.create();
+    private normalMatrix = mat3.create();
 
     constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
         this.skeleton = skeleton;
@@ -25,6 +26,7 @@ export class Mesh {
 
     public _setWebGl(webgl: WebGL2RenderingContext) {
         this.webgl = webgl;
+        this.primitives.forEach((prim) => prim._setWebGl(webgl));
         this.skeleton?._setWebGl(webgl);
     }
 
@@ -58,13 +60,22 @@ export class Mesh {
         this.createAABB();
     }
 
+    public getNormalMatrix() {
+        return this.normalMatrix;
+    }
+
     public setModelMatrix(matrix: mat4) {
         this.modelMatrix = matrix;
+        this.calculateNormalMatrix();
         this.createAABB();
     }
 
     public getModelMatrix() {
         return this.modelMatrix;
+    }
+
+    private calculateNormalMatrix() {
+        mat3.normalFromMat4(this.normalMatrix, this.modelMatrix);
     }
 
     private _getSkinnedAABBFromPrimitives() {

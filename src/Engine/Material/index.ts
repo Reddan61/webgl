@@ -9,30 +9,47 @@ export enum MATERIAL_ALPHA_MODE {
 
 export class Material {
     private color: vec4;
-    private image: HTMLImageElement | null = null;
-    private texture: ImageTexture | null = null;
+    private baseImage: HTMLImageElement | null = null;
+    private normalImage: HTMLImageElement | null = null;
+    private isFlipTexture = false;
+    private baseTexture: ImageTexture | null = null;
+    private normalTexture: ImageTexture | null = null;
     private alphaMode = MATERIAL_ALPHA_MODE.OPAQUE;
     private alphaCutoff = 0.5;
 
     constructor({
         color = [1, 1, 1, 1],
-        image = null,
+        baseImage = null,
         alphaMode = MATERIAL_ALPHA_MODE.OPAQUE,
         alphaCutoff = 0.5,
+        normalImage = null,
+        isFlipTexture = false,
     }: {
         color?: vec4;
-        image?: HTMLImageElement | null;
+        baseImage?: HTMLImageElement | null;
+        normalImage?: HTMLImageElement | null;
         alphaMode?: MATERIAL_ALPHA_MODE;
         alphaCutoff?: number;
+        isFlipTexture?: boolean;
     }) {
         this.color = color;
-        this.image = image;
+        this.baseImage = baseImage;
         this.alphaMode = alphaMode;
         this.alphaCutoff = alphaCutoff;
+        this.normalImage = normalImage;
+        this.isFlipTexture = isFlipTexture;
     }
 
     public getAlphaMode() {
         return this.alphaMode;
+    }
+
+    public _setWebGl(webgl: WebGL2RenderingContext) {
+        this.createTexture(webgl);
+    }
+
+    public getNormalTexture() {
+        return this.normalTexture;
     }
 
     public getAlphaCutoff() {
@@ -46,23 +63,41 @@ export class Material {
         this.color = color;
     }
 
-    public setImage(image: HTMLImageElement | null) {
-        this.image = image;
+    public setBaseImage(image: HTMLImageElement | null) {
+        this.baseImage = image;
     }
 
-    public getImage() {
-        return this.image;
+    public getBaseImage() {
+        return this.baseImage;
     }
 
-    public setTexture(texture: ImageTexture | null) {
-        this.texture = texture;
+    public setBaseTexture(texture: ImageTexture | null) {
+        this.baseTexture = texture;
     }
 
-    public getTexture() {
-        return this.texture;
+    public getBaseTexture() {
+        return this.baseTexture;
     }
 
     public getColor() {
         return this.color;
+    }
+
+    private createTexture(webgl: WebGL2RenderingContext) {
+        if (this.baseImage) {
+            this.baseTexture = new ImageTexture(
+                webgl,
+                this.baseImage,
+                this.isFlipTexture
+            );
+        }
+
+        if (this.normalImage) {
+            this.normalTexture = new ImageTexture(
+                webgl,
+                this.normalImage,
+                false
+            );
+        }
     }
 }

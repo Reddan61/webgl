@@ -2,6 +2,7 @@ export const vertexShader = `#version 300 es
   precision mediump float;
 
   in vec3 vertexPosition;
+  in vec4 tangent;
   in vec2 textureCoords;
   in vec3 normals;
   in vec4 weight;
@@ -13,6 +14,7 @@ export const vertexShader = `#version 300 es
   uniform mat4 projection;
   uniform mat4 lightSpaceMatrix;
   uniform bool useBones;
+  uniform bool useNormalTexture;
 
   uniform sampler2D bonesDataTexture;
   uniform float numBones;
@@ -21,6 +23,7 @@ export const vertexShader = `#version 300 es
   out vec3 fragNormal;
   out vec3 fragPosition;
   out vec4 fragPositionLightSpace;
+  out mat3 tbn;
 
   #define ROW0_U ((0.5 + 0.0) / 4.)
   #define ROW1_U ((0.5 + 1.0) / 4.)
@@ -39,14 +42,32 @@ export const vertexShader = `#version 300 es
 
   void main(void) {
     fragTextureCoords = textureCoords;
-    fragNormal = normalize(normalMat * normals);
+
+    vec3 skinnedNormal = normals;
+    vec3 skinnedTangent = tangent.xyz;
 
     if (useBones) {
       vec4 skinned = (getBoneMatrix(boneIndexes[0]) * vec4(vertexPosition, 1.0) * weight[0] +
                  getBoneMatrix(boneIndexes[1]) * vec4(vertexPosition, 1.0) * weight[1] +
                  getBoneMatrix(boneIndexes[2]) * vec4(vertexPosition, 1.0) * weight[2] +
                  getBoneMatrix(boneIndexes[3]) * vec4(vertexPosition, 1.0) * weight[3]);
-  
+          
+      skinnedNormal = normalize(
+        (getBoneMatrix(boneIndexes[0]) * vec4(normals, 0.0) * weight[0] +
+         getBoneMatrix(boneIndexes[1]) * vec4(normals, 0.0) * weight[1] +
+         getBoneMatrix(boneIndexes[2]) * vec4(normals, 0.0) * weight[2] +
+         getBoneMatrix(boneIndexes[3]) * vec4(normals, 0.0) * weight[3]).xyz
+      );
+
+      if (useNormalTexture) {
+        skinnedTangent = normalize(
+          (getBoneMatrix(boneIndexes[0]) * vec4(skinnedTangent, 0.0) * weight[0] +
+           getBoneMatrix(boneIndexes[1]) * vec4(skinnedTangent, 0.0) * weight[1] +
+           getBoneMatrix(boneIndexes[2]) * vec4(skinnedTangent, 0.0) * weight[2] +
+           getBoneMatrix(boneIndexes[3]) * vec4(skinnedTangent, 0.0) * weight[3]).xyz
+        );
+      }
+
       gl_Position = projection * view * transformation * skinned;
       fragPosition = (transformation * skinned).xyz;
     } else {
@@ -55,5 +76,11 @@ export const vertexShader = `#version 300 es
     }
 
     fragPositionLightSpace = lightSpaceMatrix * vec4(fragPosition, 1.0);
+    fragNormal = normalize(normalMat * skinnedNormal);
+
+    if (useNormalTexture) {
+      vec3 bitangent = normalize(cross(fragNormal, skinnedTangent));
+      tbn = mat3(skinnedTangent, bitangent, fragNormal);
+    }
   }
 `;

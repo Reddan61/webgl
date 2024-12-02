@@ -29,6 +29,7 @@ export const fragmentShader = `#version 300 es
   in vec3 fragNormal;
   in vec3 fragPosition;
   in vec4 fragPositionLightSpace;
+  in mat3 tbn;
 
   out vec4 fragColor;
 
@@ -37,11 +38,13 @@ export const fragmentShader = `#version 300 es
   uniform vec4 colorFactor;
   uniform bool useTexture;
   uniform bool useLight;
+  uniform bool useNormalTexture;
   uniform vec3 cameraPosition;
 
   uniform float alphaCutoff;
 
   uniform sampler2D objectTexture;
+  uniform sampler2D normalTexture;
 
   uniform sampler2D pointLightsDataTexture;
   uniform float pointLightsCount;
@@ -49,14 +52,14 @@ export const fragmentShader = `#version 300 es
   uniform sampler2D shadowMap;
   uniform sampler2D shadowAtlas;
 
-  float calculateDirectionalLightShadow(vec4 fragPosLightSpace) {
+  float calculateDirectionalLightShadow(vec4 fragPosLightSpace, vec3 normal) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
     float currentDepth = projCoords.z;
     float pcfDepth = texture(shadowMap, projCoords.xy).r;
 
-    float bias = max(0.0025f * (1.0f - dot(fragNormal, directionalLight.direction)), 0.001);
+    float bias = max(0.0025f * (1.0f - dot(normal, directionalLight.direction)), 0.001);
     float shadow = 0.0;
 
     if(currentDepth > pcfDepth + bias) {
@@ -89,7 +92,7 @@ export const fragmentShader = `#version 300 es
     }
   }
 
-  float calculatePointShadow(PointLight light) {
+  float calculatePointShadow(PointLight light, vec3 normal) {
     vec3 lightVec = normalize(light.position - fragPosition);
 
     vec3 fragToLight =  fragPosition - light.position;
@@ -125,7 +128,7 @@ export const fragmentShader = `#version 300 es
     float closestDepth = texture(shadowAtlas, atlasUV).r;
     closestDepth *= light.farPlane;
 
-    float bias = max(0.5 * (1.0 - dot(fragNormal, lightVec)), 0.5);
+    float bias = max(0.5 * (1.0 - dot(normal, lightVec)), 0.5);
 
     float shadow = 0.0;
 
@@ -164,31 +167,31 @@ export const fragmentShader = `#version 300 es
     return light;
 }
 
-  vec3 calculateDirectionalLight(vec3 viewDir, float specularStrength) {
-    float diffuse = max(dot(fragNormal, directionalLight.direction), 0.0) * directionalLight.bright;
+  vec3 calculateDirectionalLight(vec3 viewDir, float specularStrength, vec3 normal) {
+    float diffuse = max(dot(normal, directionalLight.direction), 0.0) * directionalLight.bright;
 
-    vec3 reflectDir = reflect(-directionalLight.direction, fragNormal);
+    vec3 reflectDir = reflect(-directionalLight.direction, normal);
 
     float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0) * specularStrength;
 
-    float shadow = calculateDirectionalLightShadow(fragPositionLightSpace);
+    float shadow = calculateDirectionalLightShadow(fragPositionLightSpace, normal);
 
     return (diffuse + specular) * directionalLight.color  * (1.0 - shadow);
   } 
 
-  vec3 calculatePointLight(PointLight light, vec3 viewDir, float specularStrength) {
+  vec3 calculatePointLight(PointLight light, vec3 viewDir, float specularStrength, vec3 normal) {
     float light_constant = 1.0;
     float light_linear = 0.1;
     float light_quadratic = 0.0;
 
-    float shadow = calculatePointShadow(light);
+    float shadow = calculatePointShadow(light, normal);
 
     vec3 pointLightDir = light.position - fragPosition;
     float distance = length(pointLightDir);
     pointLightDir = normalize(pointLightDir);
-    float diffuse = max(dot(fragNormal, pointLightDir), 0.0) * light.bright;
+    float diffuse = max(dot(normal, pointLightDir), 0.0) * light.bright;
 
-    vec3 reflectDir = reflect(-pointLightDir, fragNormal);  
+    vec3 reflectDir = reflect(-pointLightDir, normal);  
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
     float specular = specularStrength * spec;  
 
@@ -199,17 +202,25 @@ export const fragmentShader = `#version 300 es
 
   void main(void) {
     vec3 finalColor = vec3(0.0);
+    vec3 normal = fragNormal;
+
+    if (useNormalTexture) {
+      vec3 normalFromTexture = texture(normalTexture, fragTextureCoords).rgb;
+      normalFromTexture = normalize(normalFromTexture * 2.0 - 1.0);
+
+      normal = normalize(tbn * normalFromTexture);
+    }
     
     if (useLight) {
       vec3 viewDir = normalize(cameraPosition - fragPosition);
       float specularStrength = 0.5;
       
       finalColor = ambientLight.color * ambientLight.bright;
-      finalColor += calculateDirectionalLight(viewDir, specularStrength);
+      finalColor += calculateDirectionalLight(viewDir, specularStrength, normal);
 
       for (float i = 0.0; i < pointLightsCount; i++) {
         PointLight pointLight = getPointLight(i);
-        vec3 pointLightColor = calculatePointLight(pointLight, viewDir, specularStrength);
+        vec3 pointLightColor = calculatePointLight(pointLight, viewDir, specularStrength, normal);
         
         finalColor += pointLightColor;
       }

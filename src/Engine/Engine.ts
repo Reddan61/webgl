@@ -84,7 +84,6 @@ export class Engine {
         );
 
         this.enableCullFace();
-        this.generateTexturesForObjects();
         this.subscribe();
     }
 
@@ -98,27 +97,6 @@ export class Engine {
 
     public setShowTexture(bool: boolean) {
         this.showTexture = bool;
-    }
-
-    private generateTexturesForObjects() {
-        this.scene.getObjects().forEach((object) => {
-            object.getMeshes().forEach((mesh) => {
-                const primitives = mesh.getPrimitives();
-                primitives.forEach((prim) => {
-                    const material = prim.getMaterial();
-                    const image = material.getImage();
-
-                    if (!image) return;
-
-                    const texture = this.createObjectTexture(
-                        image,
-                        object.isFlipYTexture()
-                    );
-
-                    material.setTexture(texture);
-                });
-            });
-        });
     }
 
     public run = () => {

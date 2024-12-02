@@ -136,12 +136,15 @@ const parseMaterial = (
     materialIndex: number
 ): Material => {
     const { materials } = gltf;
-    const { pbrMetallicRoughness, alphaCutoff, alphaMode } =
+    const { pbrMetallicRoughness, alphaCutoff, alphaMode, normalTexture } =
         materials[materialIndex];
 
     const material = new Material({
         alphaCutoff,
         alphaMode,
+        normalImage: normalTexture
+            ? parseTexture(gltf, images, normalTexture.index)
+            : null,
     });
 
     if (pbrMetallicRoughness) {
@@ -153,7 +156,7 @@ const parseMaterial = (
         if (baseColorTexture) {
             const { index } = baseColorTexture;
 
-            material.setImage(parseTexture(gltf, images, index));
+            material.setBaseImage(parseTexture(gltf, images, index));
         }
     }
 
@@ -181,8 +184,14 @@ const parsePrimitives = (
         } = primitives[i];
 
         if (indicesIndex !== undefined) {
-            const { NORMAL, POSITION, TEXCOORD_0, JOINTS_0, WEIGHTS_0 } =
-                attributes;
+            const {
+                NORMAL,
+                POSITION,
+                TEXCOORD_0,
+                JOINTS_0,
+                WEIGHTS_0,
+                TANGENT,
+            } = attributes;
 
             const meshPrimitive = new MeshPrimitive({
                 indices: getAccessorData(gltf, buffers, indicesIndex).data,
@@ -196,6 +205,10 @@ const parsePrimitives = (
                 weight:
                     WEIGHTS_0 !== undefined
                         ? getAccessorData(gltf, buffers, WEIGHTS_0).data
+                        : null,
+                tangents:
+                    TANGENT !== undefined
+                        ? getAccessorData(gltf, buffers, TANGENT).data
                         : null,
             });
 

@@ -17,6 +17,7 @@ import { DataTexture } from "./Texture/DataTexture";
 import { ShadowAtlasProgram } from "./ShadowAtlasProgram";
 import { ShadowMapProgram } from "./ShadowMapProgram";
 import { Material } from "../Material";
+import { MeshPrimitive } from "../MeshPrimitive";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -25,12 +26,15 @@ export class TriangleProgram extends Program {
     private normalsBuffer: ArrayBuffer;
     private weightsBuffer: ArrayBuffer;
     private bonesIndexesBuffer: ArrayBuffer;
+    private tangentsBuffer: ArrayBuffer;
 
     private useTextureUniform: Uniform1i;
+    private useNormalTextureUniform: Uniform1i;
     private useBonesUniform: Uniform1i;
     private useLightUniform: Uniform1i;
 
     private objectTextureUniform: TextureUniform;
+    private normalTextureUniform: TextureUniform;
     private shadowMapTextureUniform: TextureUniform;
     private shadowAtlasTextureUniform: TextureUniform;
     private pointLightDataTextureUniform: TextureUniform;
@@ -92,8 +96,6 @@ export class TriangleProgram extends Program {
                 this.enableCullFace();
             }
 
-            const objectModelMatrix = object.getModelMatrix();
-
             object.getMeshes().forEach((mesh) => {
                 const isLight = Boolean(mesh.getLight());
                 const primitives = mesh.getPrimitives();
@@ -101,23 +103,19 @@ export class TriangleProgram extends Program {
                 const boneMatrices = skeleton?.getSkinningMatrices();
                 const useBones = !!boneMatrices;
 
-                const modelMatrix =
-                    skeleton === null
-                        ? mat4.multiply(
-                              mat4.create(),
-                              objectModelMatrix,
-                              mesh.getModelMatrix()
-                          )
-                        : objectModelMatrix;
+                const modelMatrix = object.getMeshModelMatrix(mesh);
+                const normalMatrix = object.getMeshNormalMatrix(mesh);
 
-                primitives.forEach((prim) => {
-                    const material = prim.getMaterial();
+                primitives.forEach((primitive) => {
+                    const material = primitive.getMaterial();
 
                     this.setVariables({
+                        primitive,
                         material,
                         useBones,
                         scene,
                         modelMatrix,
+                        normalMatrix,
                         bonesDataTexture:
                             skeleton?.getBonesDataTexture() ?? null,
                         bonesCount: skeleton?.getBonesCount() ?? 0,
@@ -127,20 +125,13 @@ export class TriangleProgram extends Program {
                             shadowAtlasProgram.getAtlasTexture(),
                         useLight: !isLight,
                         colorFactor: material.getColor(),
-                        objectTexture: material.getTexture(),
-                        indices: prim.getIndices(),
-                        joints: prim.getJoints(),
-                        normals: prim.getNormals(),
-                        textureCoords: prim.getTextureCoords(),
-                        vertices: prim.getVertices(),
-                        weights: prim.getWeights(),
-                        normalMatrix: object.getNormalMatrix(),
+                        objectTexture: material.getBaseTexture(),
                         cameraPosition: new Float32Array(camera.getPosition()),
                     });
 
                     this.webgl.drawElements(
                         this.webgl.TRIANGLES,
-                        prim.getIndices().length,
+                        primitive.getIndices().length,
                         this.webgl.UNSIGNED_SHORT,
                         0
                     );
@@ -171,6 +162,7 @@ export class TriangleProgram extends Program {
         this.textureCoordsBuffer.setAttributes();
         this.weightsBuffer.setAttributes();
         this.bonesIndexesBuffer.setAttributes();
+        this.tangentsBuffer.setAttributes();
     }
 
     private enableCullFace() {
@@ -226,6 +218,14 @@ export class TriangleProgram extends Program {
             this.webgl.FLOAT
         );
 
+        this.tangentsBuffer = new ArrayBuffer(
+            this.webgl,
+            this.program,
+            "tangent",
+            4,
+            this.webgl.FLOAT
+        );
+
         this.setAttributes();
     }
 
@@ -254,6 +254,12 @@ export class TriangleProgram extends Program {
             this.webgl,
             this.program,
             "useTexture"
+        );
+
+        this.useNormalTextureUniform = new Uniform1i(
+            this.webgl,
+            this.program,
+            "useNormalTexture"
         );
 
         this.ambientLightColorUniform = new Uniform3fv(
@@ -366,6 +372,14 @@ export class TriangleProgram extends Program {
             this.webgl.TEXTURE4
         );
 
+        this.normalTextureUniform = new TextureUniform(
+            this.webgl,
+            this.program,
+            "normalTexture",
+            5,
+            this.webgl.TEXTURE5
+        );
+
         this.alphaCutoffUniform = new Uniform1f(
             this.webgl,
             this.program,
@@ -374,13 +388,7 @@ export class TriangleProgram extends Program {
     }
 
     private setVertexShaderBuffers({
-        joints,
-        normals,
-        textureCoords,
         useBones,
-        vertices,
-        weights,
-        indices,
         modelMatrix,
         normalMatrix,
         colorFactor,
@@ -393,14 +401,10 @@ export class TriangleProgram extends Program {
         shadowAtlasTexture,
         bonesCount,
         material,
+        primitive,
     }: {
         useBones: boolean;
-        indices: Uint16Array;
-        vertices: Float32Array;
-        joints: Float32Array;
-        weights: Float32Array;
-        normals: Float32Array;
-        textureCoords: Float32Array;
+        primitive: MeshPrimitive;
         scene: Scene;
         material: Material;
         modelMatrix: mat4;
@@ -414,18 +418,21 @@ export class TriangleProgram extends Program {
         cameraPosition: Float32Array;
         useLight: boolean;
     }) {
-        this.indicesBuffer.setBufferData(indices);
+        this.indicesBuffer.setBufferData(primitive.getIndices());
 
-        this.vertexBuffer.setBufferData(vertices);
-        this.textureCoordsBuffer.setBufferData(textureCoords);
-        this.normalsBuffer.setBufferData(normals);
-        this.weightsBuffer.setBufferData(weights);
-        this.bonesIndexesBuffer.setBufferData(joints);
+        this.vertexBuffer.setBufferData(primitive.getVertices());
+        this.textureCoordsBuffer.setBufferData(primitive.getTextureCoords());
+        this.normalsBuffer.setBufferData(primitive.getNormals());
+        this.weightsBuffer.setBufferData(primitive.getWeights());
+        this.bonesIndexesBuffer.setBufferData(primitive.getJoints());
+        this.tangentsBuffer.setBufferData(primitive.getTangents());
 
-        const useTexture = Boolean(material.getTexture());
+        const useTexture = Boolean(material.getBaseTexture());
+        const useNormalTexture = Boolean(material.getNormalTexture());
 
         this.useBonesUniform.setData(Number(useBones));
         this.useTextureUniform.setData(Number(useTexture));
+        this.useNormalTextureUniform.setData(Number(useNormalTexture));
         this.useLightUniform.setData(Number(useLight));
 
         this.alphaCutoffUniform.setData(material.getAlphaCutoff());
@@ -437,6 +444,7 @@ export class TriangleProgram extends Program {
         );
 
         const directionalLight = scene.getDirectionalLight();
+
         this.directionalLightBrightUniform.setData(
             directionalLight.getBright()
         );
@@ -455,6 +463,10 @@ export class TriangleProgram extends Program {
         this.normalMatUniform.setData(normalMatrix);
 
         this.objectTextureUniform.setData(objectTexture?.getTexture() ?? null);
+        this.normalTextureUniform.setData(
+            material.getNormalTexture()?.getTexture() ?? null
+        );
+
         this.pointLightDataTextureUniform.setData(
             scene._getPointLightsDataTexture()?.getTexture() ?? null
         );

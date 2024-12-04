@@ -6,20 +6,20 @@
         <title>Webpack</title>
     </head>
     <body>
-        <div class="wrapper">
-            <div id="fps" class="fps">0</div>
-            <div class="checkbox">
-                <input type="checkbox" id="aabb" />
-                Включить AABB
-            </div>
-            <div class="checkbox">
-                <input type="checkbox" id="texture" />
-                Просмотр текстуры
-            </div>
-            <button id="controls" class="controls">
-                Посмотреть управление
-            </button>
+        <div id="canvasContainer">
+            <ul id="menu">
+                <div id="fps" class="fps">0</div>
+                <li class="menuItem">
+                    <input type="checkbox" id="aabb" />
+                    Rays
+                </li>
+                <li class="menuItem">
+                    <input type="checkbox" id="texture" />
+                    Show Texture
+                </li>
+                <li id="objectAnimations"></li>
+            </ul>
+            <canvas id="canvas"></canvas>
         </div>
-        <canvas id="canvas" width="100%" height="100%"></canvas>
     </body>
 </html>

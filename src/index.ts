@@ -24,17 +24,6 @@ import { PointLight } from "./Engine/Light/PointLight";
 import { Material } from "./Engine/Material";
 // import msssingTexture from "../resources/missing.png"
 
-const controls = document.getElementById("controls");
-
-if (controls) {
-    controls.addEventListener("click", () => {
-        alert(`
-            Передвижение: WASD + Space + Shift
-            Осмотр: стрелочки или движение мыши с зажатой левой кнопкой    
-        `);
-    });
-}
-
 const createPointLight = (pointLight: PointLight) => {
     const sphere = createSphere(2, 15);
     const lightColor = pointLight.getColor();
@@ -71,7 +60,7 @@ const createPointLight = (pointLight: PointLight) => {
     return pointLightObject;
 };
 
-const start = async () => {
+const createScene = async () => {
     const cameraPosition = vec3.create();
     cameraPosition[0] = 0;
     cameraPosition[1] = 0;
@@ -212,12 +201,23 @@ const start = async () => {
     // scene.addObject(pointLightObject4);
     // scene.addObject(pointLightObject5);
 
-    const engine = new Engine("canvas", scene);
+    return scene;
+};
 
-    engine.run();
+const subscribe = (engine: Engine) => {
+    const objectSelector = engine.getObjectSelector();
 
     const aabbElement = document.getElementById("aabb");
     const textureElement = document.getElementById("texture");
+    const fpsElement = document.getElementById("fps");
+    const canvasContainer = document.getElementById("canvasContainer");
+    const objectAnimations = document.getElementById("objectAnimations");
+
+    if (fpsElement) {
+        engine.setTickFunc(() => {
+            fpsElement.innerHTML = `${engine.getFps()} fps`;
+        });
+    }
 
     if (aabbElement) {
         aabbElement.addEventListener("change", (e) => {
@@ -235,6 +235,72 @@ const start = async () => {
             target.blur();
         });
     }
+
+    if (canvasContainer) {
+        window.addEventListener("resize", () => {
+            engine.setCanvasSize(
+                canvasContainer.clientWidth,
+                canvasContainer.clientHeight
+            );
+        });
+    }
+
+    if (!objectAnimations) return;
+
+    objectSelector.addOnChange(({ lastSelected }) => {
+        if (lastSelected) {
+            const animations = lastSelected?.getAnimations();
+            objectAnimations.innerHTML = "";
+
+            if (animations.length) {
+                const ul = document.createElement("ul");
+                ul.id = "objectAnimationList";
+                const title = document.createElement("h3");
+
+                title.append(document.createTextNode("Object Animations:"));
+                ul.append(title);
+
+                const currentAnimation = lastSelected.getCurrentAnimation();
+
+                animations.forEach((animation, index) => {
+                    const isSelected = currentAnimation === animation;
+                    const li = document.createElement("li");
+                    li.classList.add("AnimationItem");
+
+                    if (isSelected) {
+                        li.classList.add("AnimationItem_selected");
+                    }
+
+                    li.append(
+                        document.createTextNode(`${animation.getName()}`)
+                    );
+
+                    li.onclick = () => {
+                        const items = ul.getElementsByTagName("li");
+                        for (let i = 0; i < items.length; i++) {
+                            items[i].classList.remove("AnimationItem_selected");
+                        }
+
+                        lastSelected.selectAnimation(animation);
+                        li.classList.add("AnimationItem_selected");
+                    };
+
+                    ul.append(li);
+                });
+
+                objectAnimations.append(ul);
+            }
+        }
+    });
+};
+
+const start = async () => {
+    const scene = await createScene();
+    const engine = new Engine("canvas", scene);
+
+    engine.run();
+
+    subscribe(engine);
 };
 
 start();

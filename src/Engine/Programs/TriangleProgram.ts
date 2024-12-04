@@ -59,13 +59,14 @@ export class TriangleProgram extends Program {
     private transformationMatrix: UniformMatrix4fv;
     private viewMatUniform: UniformMatrix4fv;
     private lightSpaceMatrixUniform: UniformMatrix4fv;
+    private projectionMatUniform: UniformMatrix4fv;
 
-    constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
+    constructor(webgl: WebGL2RenderingContext) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
         super.useProgram();
         this.initBuffers();
-        this.matrixInit(perspective, view);
+        this.matrixInit();
     }
 
     public setVariables(
@@ -229,7 +230,7 @@ export class TriangleProgram extends Program {
         this.setAttributes();
     }
 
-    private matrixInit(perspective: mat4, view: mat4) {
+    private matrixInit() {
         this.viewMatUniform = new UniformMatrix4fv(
             this.webgl,
             this.program,
@@ -303,7 +304,7 @@ export class TriangleProgram extends Program {
             "colorFactor"
         );
 
-        const projectionMatUniform = new UniformMatrix4fv(
+        this.projectionMatUniform = new UniformMatrix4fv(
             this.webgl,
             this.program,
             "projection"
@@ -319,9 +320,6 @@ export class TriangleProgram extends Program {
             this.program,
             "useLight"
         );
-
-        this.viewMatUniform.setData(view);
-        projectionMatUniform.setData(perspective);
 
         this.objectTextureUniform = new TextureUniform(
             this.webgl,
@@ -418,6 +416,11 @@ export class TriangleProgram extends Program {
         cameraPosition: Float32Array;
         useLight: boolean;
     }) {
+        const camera = scene.getCamera();
+
+        this.viewMatUniform.setData(camera.getView());
+        this.projectionMatUniform.setData(camera.getProjection());
+
         this.indicesBuffer.setBufferData(primitive.getIndices());
 
         this.vertexBuffer.setBufferData(primitive.getVertices());

@@ -8,6 +8,7 @@ import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
 import { Uniform4fv } from "./Uniform/Uniform4fv";
 import { Scene } from "../Scene";
 import { ObjectSelector } from "../ObjectSelector";
+import { Camera } from "../Camera";
 
 export type LineProgramVertices = Float32Array;
 export type LineProgramIndices = Uint16Array;
@@ -17,15 +18,16 @@ export class LineProgram extends Program {
     private indicesBuffer: ElementBuffer;
 
     private transformationMatUniform: UniformMatrix4fv;
+    private projectionMatUniform: UniformMatrix4fv;
     private viewMatUniform: UniformMatrix4fv;
     private colorUniform: Uniform4fv;
 
-    constructor(webgl: WebGL2RenderingContext, perspective: mat4, view: mat4) {
+    constructor(webgl: WebGL2RenderingContext) {
         super(webgl);
         this.Init(vertexShader, fragmentShader);
         super.useProgram();
         this.initBuffers();
-        this.matrixInit(perspective, view);
+        this.matrixInit();
     }
 
     public draw(scene: Scene, objectSelector: ObjectSelector) {
@@ -34,6 +36,7 @@ export class LineProgram extends Program {
 
         const selectedObject = objectSelector.getSelected();
         const objects = scene.getObjects();
+        const camera = scene.getCamera();
 
         objects.forEach((object) => {
             const modelMatrix = object.getModelMatrix();
@@ -46,7 +49,8 @@ export class LineProgram extends Program {
                 aabb.getVertices(),
                 aabbIndices,
                 modelMatrix,
-                isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0]
+                isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0],
+                camera
             );
 
             this.webgl.drawElements(
@@ -68,7 +72,8 @@ export class LineProgram extends Program {
                 lineToDraw.vertices,
                 lineToDraw.indices,
                 modelMatrix,
-                [0.0, 0.0, 1.0, 1.0]
+                [0.0, 0.0, 1.0, 1.0],
+                camera
             );
 
             this.webgl.drawElements(
@@ -82,15 +87,6 @@ export class LineProgram extends Program {
 
     public updateView(view: mat4) {
         this.viewMatUniform.setData(view);
-    }
-
-    public setVariables(
-        vertices: LineProgramVertices,
-        indices: LineProgramIndices,
-        modelMatrix: mat4,
-        color: vec4
-    ) {
-        this.setVertexShaderBuffers(vertices, indices, modelMatrix, color);
     }
 
     public useProgram() {
@@ -115,7 +111,7 @@ export class LineProgram extends Program {
         this.setAttributes();
     }
 
-    private matrixInit(perspective: mat4, view: mat4) {
+    private matrixInit() {
         this.viewMatUniform = new UniformMatrix4fv(
             this.webgl,
             this.program,
@@ -127,23 +123,24 @@ export class LineProgram extends Program {
             "transformation"
         );
 
-        const projectionMatUniform = new UniformMatrix4fv(
+        this.projectionMatUniform = new UniformMatrix4fv(
             this.webgl,
             this.program,
             "projection"
         );
         this.colorUniform = new Uniform4fv(this.webgl, this.program, "color");
-
-        this.viewMatUniform.setData(view);
-        projectionMatUniform.setData(perspective);
     }
 
-    private setVertexShaderBuffers(
+    private setVariables(
         vertices: LineProgramVertices,
         indices: LineProgramIndices,
         modelMatrix: mat4,
-        color: vec4
+        color: vec4,
+        camera: Camera
     ) {
+        this.viewMatUniform.setData(camera.getView());
+        this.projectionMatUniform.setData(camera.getProjection());
+
         this.vertexBuffer.setBufferData(vertices);
         this.indicesBuffer.setBufferData(indices);
 

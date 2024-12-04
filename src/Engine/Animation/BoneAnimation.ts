@@ -27,10 +27,20 @@ export interface AnimationChannel {
 export class BoneAnimation {
     private samplers: AnimationSampler[] = [];
     private channels: AnimationChannel[] = [];
+    private name: string;
 
-    constructor(samplers: AnimationSampler[], channels: AnimationChannel[]) {
+    constructor(
+        samplers: AnimationSampler[],
+        channels: AnimationChannel[],
+        name = "DEFAULT_ANIMATION_NAME"
+    ) {
         this.samplers = samplers;
         this.channels = channels;
+        this.name = name;
+    }
+
+    public getName() {
+        return this.name;
     }
 
     public update(bones: Bone[]) {

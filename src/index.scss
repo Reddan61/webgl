@@ -1,8 +1,17 @@
 body {
-    max-width: 100%;
-    min-width: 100%;
-    max-height: 100vh;
-    min-height: 100vh;
+    width: 100%;
+    height: 100vh;
+}
+
+#canvasContainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+#canvas {
+    width: 100%;
+    height: 100%;
 }
 
 .wrapper {
@@ -13,7 +22,6 @@ body {
 }
 
 .fps {
-    font-size: 32px;
     color: red;
 }
 
@@ -21,16 +29,30 @@ body {
     border-radius: 4px;
     font-size: 32px;
     color: white;
-    background-color: black;
 }
 
-.checkbox {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 12px;
+#menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 20px;
     font-size: 32px;
     color: white;
-    background-color: black;
+    background-color: rgba(0, 0, 255, 0.5);
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.AnimationItem {
+    margin: 0 0 0 16px;
+    font-size: 24px;
+    cursor: pointer;
+
+    &_selected {
+        color: red;
+    }
 }

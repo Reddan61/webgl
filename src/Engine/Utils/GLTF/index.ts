@@ -1,4 +1,3 @@
-import { vec4 } from "gl-matrix";
 import { loadImage } from "../Utils";
 import {
     ACCESSOR_TYPE,
@@ -271,11 +270,13 @@ const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[]) => {
     const bonesAnimations: BoneAnimation[] = [];
 
     for (let i = 0; i < animations.length; i++) {
-        const { samplers, channels } = animations[i];
+        const { samplers, channels, name } = animations[i];
         const samplersParsed = parseSamplers(gltf, buffers, samplers);
         const channelsParsed = parseChannels(channels);
 
-        bonesAnimations.push(new BoneAnimation(samplersParsed, channelsParsed));
+        bonesAnimations.push(
+            new BoneAnimation(samplersParsed, channelsParsed, name)
+        );
     }
 
     return bonesAnimations;

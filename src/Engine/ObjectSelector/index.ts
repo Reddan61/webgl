@@ -6,15 +6,23 @@ import { Rays } from "../Rays";
 import { AABB } from "../AABB";
 
 interface SelectedObject {
-    object: Object;
+    object: Object | null;
     distanceToObject: number;
+    lastSelected: Object | null;
 }
+
+type OnChange = (selected: SelectedObject) => void;
 
 export class ObjectSelector {
     private camera: Camera;
     private canvas: HTMLCanvasElement;
     private rays: Ray[] = [];
-    private selected: SelectedObject | null = null;
+    private selected: SelectedObject = {
+        distanceToObject: 0,
+        lastSelected: null,
+        object: null,
+    };
+    private onChange: OnChange[] = [];
 
     constructor(canvas: HTMLCanvasElement, camera: Camera) {
         this.camera = camera;
@@ -25,12 +33,27 @@ export class ObjectSelector {
         return this.rays;
     }
 
+    public addOnChange(func: OnChange) {
+        this.onChange.push(func);
+    }
+
+    private publish() {
+        this.onChange.forEach((func) => {
+            func(this.selected);
+        });
+    }
+
     public getSelected() {
         return this.selected;
     }
 
     public clear() {
-        this.selected = null;
+        this.selected = {
+            distanceToObject: 0,
+            lastSelected: null,
+            object: null,
+        };
+        this.publish();
     }
 
     public select(screenX: number, screenY: number, objects: Object[]) {
@@ -39,9 +62,10 @@ export class ObjectSelector {
         this.rays[0] = ray;
 
         this.selected = this.objectHit(ray, objects);
+        this.publish();
     }
 
-    private objectHit(ray: Ray, objects: Object[]): SelectedObject | null {
+    private objectHit(ray: Ray, objects: Object[]): SelectedObject {
         const nearest = {
             distToHit: Infinity,
             object: null as Object | null,
@@ -81,12 +105,11 @@ export class ObjectSelector {
             }
         });
 
-        return nearest.object
-            ? {
-                  distanceToObject: nearest.distToHit,
-                  object: nearest.object,
-              }
-            : null;
+        return {
+            distanceToObject: nearest.distToHit,
+            object: nearest.object,
+            lastSelected: nearest.object ?? this.selected?.object ?? null,
+        };
     }
 
     private aabbHit(ray: Ray, aabb: AABB) {

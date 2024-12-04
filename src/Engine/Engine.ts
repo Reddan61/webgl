@@ -1,15 +1,14 @@
-import { mat4, vec3 } from "gl-matrix";
-
+import { vec3 } from "gl-matrix";
 import { Rays } from "./Rays";
-
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
 import { ObjectSelector } from "./ObjectSelector";
 import { Scene } from "./Scene";
-import { ImageTexture } from "./Programs/Texture/ImageTexture";
 import { ShadowMapProgram } from "./Programs/ShadowMapProgram";
 import { ShadowAtlasProgram } from "./Programs/ShadowAtlasProgram";
 import { TextureShowProgram } from "./Programs/TextureShowProgram";
+
+type TickFunc = (() => void) | null;
 
 export class Engine {
     private canvas: HTMLCanvasElement;
@@ -31,6 +30,8 @@ export class Engine {
     private showAABB = false;
     private showTexture = false;
 
+    private tickFunc: TickFunc = null;
+
     constructor(canvasId: string, scene: Scene) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
 
@@ -39,7 +40,6 @@ export class Engine {
         }
 
         this.canvas = canvas;
-        this.normalizeCanvas();
 
         const gl = canvas.getContext("webgl2");
 
@@ -50,22 +50,14 @@ export class Engine {
         this.webgl = gl;
         this.scene = scene;
         this.scene._setWebGl(this.webgl);
+        this.normalizeCanvas();
 
         const camera = this.scene.getCamera();
-        camera.createProjection(this.canvas.width / this.canvas.height);
 
         this.objectSelector = new ObjectSelector(this.canvas, camera);
 
-        this.triangleProgram = new TriangleProgram(
-            this.webgl,
-            camera.getProjection(),
-            camera.getView()
-        );
-        this.lineProgram = new LineProgram(
-            this.webgl,
-            camera.getProjection(),
-            camera.getView()
-        );
+        this.triangleProgram = new TriangleProgram(this.webgl);
+        this.lineProgram = new LineProgram(this.webgl);
         this.shadowMapProgram = new ShadowMapProgram(this.webgl);
         this.shadowAtlasProgram = new ShadowAtlasProgram(this.webgl);
         this.textureShowProgram = new TextureShowProgram(this.webgl);
@@ -97,6 +89,14 @@ export class Engine {
 
     public setShowTexture(bool: boolean) {
         this.showTexture = bool;
+    }
+
+    public getFps() {
+        return this.fpsToDraw;
+    }
+
+    public setTickFunc(func: TickFunc) {
+        this.tickFunc = func;
     }
 
     public run = () => {
@@ -141,18 +141,27 @@ export class Engine {
             this.lineProgram.draw(this.scene, this.objectSelector);
         }
 
-        const fpsElement = document.getElementById("fps");
-
-        if (fpsElement) {
-            fpsElement.innerHTML = `${this.fpsToDraw} fps`;
-        }
-
+        this.tickFunc?.();
         requestAnimationFrame(this.run);
     };
 
     private normalizeCanvas() {
-        this.canvas.width = document.body.clientWidth;
-        this.canvas.height = document.body.clientHeight;
+        const parent = this.canvas.parentElement;
+        const width = parent?.clientWidth ?? document.body.clientWidth;
+        const height = parent?.clientHeight ?? document.body.clientHeight;
+
+        this.setCanvasSize(width, height);
+    }
+
+    public setCanvasSize(width: number, height: number) {
+        this.canvas.width = width;
+        this.canvas.height = height;
+
+        this.scene.getCamera().createProjection(width / height);
+    }
+
+    public getObjectSelector() {
+        return this.objectSelector;
     }
 
     private clear() {
@@ -163,21 +172,15 @@ export class Engine {
         );
     }
 
-    private createObjectTexture(image: HTMLImageElement, flipY: boolean) {
-        const texture = new ImageTexture(this.webgl, image, flipY);
-
-        return texture;
-    }
-
     private enableCullFace() {
         this.webgl.enable(this.webgl.CULL_FACE);
         this.webgl.frontFace(this.webgl.CCW);
         this.webgl.cullFace(this.webgl.BACK);
     }
 
-    private disableCullFace() {
-        this.webgl.disable(this.webgl.CULL_FACE);
-    }
+    // private disableCullFace() {
+    //     this.webgl.disable(this.webgl.CULL_FACE);
+    // }
 
     private isMouseDown = false;
 
@@ -200,7 +203,7 @@ export class Engine {
 
             const selected = this.objectSelector.getSelected();
 
-            if (selected) {
+            if (selected?.object) {
                 const camera = this.scene.getCamera();
 
                 const ray = Rays.RayCast(
@@ -235,7 +238,7 @@ export class Engine {
         this.canvas.addEventListener("wheel", (e) => {
             const selected = this.objectSelector.getSelected();
 
-            if (selected) {
+            if (selected?.object) {
                 const ray = Rays.RayCast(
                     e.clientX,
                     e.clientY,

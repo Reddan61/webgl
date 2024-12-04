@@ -22,6 +22,7 @@ export class Object {
     private rotation: Rotation;
 
     private animations: BoneAnimation[] = [];
+    private selectedAnimation: BoneAnimation | null = null;
     private bones: Bone[] = [];
 
     constructor(
@@ -126,9 +127,17 @@ export class Object {
     }
 
     public update() {
-        this.animations.forEach((animation) => animation.update(this.bones));
+        this.selectedAnimation?.update(this.bones);
         this.meshes.forEach((mesh) => mesh.update());
         this.createAABB();
+    }
+
+    public selectAnimation(animation: BoneAnimation | null) {
+        this.selectedAnimation = animation;
+    }
+
+    public getCurrentAnimation() {
+        return this.selectedAnimation;
     }
 
     public getMeshModelMatrix(mesh: Mesh) {
@@ -141,6 +150,10 @@ export class Object {
               )
             : // it will transform with skinning matrix in shader
               this.getModelMatrix();
+    }
+
+    public getAnimations() {
+        return this.animations;
     }
 
     public getMeshNormalMatrix(mesh: Mesh) {

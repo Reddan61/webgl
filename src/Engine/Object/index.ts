@@ -2,7 +2,6 @@ import { mat3, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "../Rotation";
 import { Mesh } from "../Mesh";
 import { BoneAnimation } from "../Animation/BoneAnimation";
-import { Bone } from "../Bones/Bones";
 import { AABB } from "../AABB";
 
 export class Object {
@@ -23,13 +22,11 @@ export class Object {
 
     private animations: BoneAnimation[] = [];
     private selectedAnimation: BoneAnimation | null = null;
-    private bones: Bone[] = [];
 
     constructor(
         meshes: Mesh[],
         position: vec3,
         scaling: vec3,
-        bones: Bone[] = [],
         animations: BoneAnimation[] = []
     ) {
         this.position = position;
@@ -37,7 +34,6 @@ export class Object {
         this.rotation = new Rotation();
         this.scaling = scaling;
         this.animations = animations;
-        this.bones = bones;
 
         this.calculateMatrix();
         this.createAABB();
@@ -127,13 +123,15 @@ export class Object {
     }
 
     public update() {
-        this.selectedAnimation?.update(this.bones);
+        this.selectedAnimation?.update();
         this.meshes.forEach((mesh) => mesh.update());
         this.createAABB();
     }
 
     public selectAnimation(animation: BoneAnimation | null) {
+        this.selectedAnimation?.stop();
         this.selectedAnimation = animation;
+        this.selectedAnimation?.start();
     }
 
     public getCurrentAnimation() {

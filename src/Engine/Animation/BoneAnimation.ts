@@ -25,15 +25,21 @@ export interface AnimationChannel {
 }
 
 export class BoneAnimation {
+    private bones: Bone[] = [];
     private samplers: AnimationSampler[] = [];
     private channels: AnimationChannel[] = [];
     private name: string;
+    private animationStartTime = 0;
+    private pauseTime = 0;
+    private isPlaying = false;
 
     constructor(
+        bones: Bone[],
         samplers: AnimationSampler[],
         channels: AnimationChannel[],
         name = "DEFAULT_ANIMATION_NAME"
     ) {
+        this.bones = bones;
         this.samplers = samplers;
         this.channels = channels;
         this.name = name;
@@ -43,8 +49,36 @@ export class BoneAnimation {
         return this.name;
     }
 
-    public update(bones: Bone[]) {
-        const currentTime = performance.now() / 1000;
+    public start() {
+        if (this.isPlaying) {
+            this.animationStartTime = performance.now() / 1000;
+        } else {
+            this.animationStartTime +=
+                performance.now() / 1000 - this.pauseTime;
+        }
+
+        this.isPlaying = true;
+    }
+
+    public pause() {
+        this.isPlaying = false;
+        this.pauseTime = performance.now() / 1000;
+    }
+
+    public stop() {
+        this.isPlaying = false;
+        this.animationStartTime = 0;
+        this.pauseTime = 0;
+
+        this.bones[0]?.default();
+        this.bones[0]?.update();
+    }
+
+    public update() {
+        if (!this.isPlaying || !this.bones.length) return;
+
+        const now = performance.now() / 1000;
+        const currentTime = now - this.animationStartTime;
 
         for (let i = 0; i < this.channels.length; i++) {
             const {
@@ -76,7 +110,7 @@ export class BoneAnimation {
             const interpolationValue =
                 (animationTime - previousTime) / (nextTime - previousTime);
 
-            const bone = bones[boneIndex];
+            const bone = this.bones[boneIndex];
             let newTranslation = null as vec3 | null;
             let newScale = null as vec3 | null;
             let newRotation = null as vec4 | null;

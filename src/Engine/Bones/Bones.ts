@@ -10,9 +10,14 @@ export class Bone {
     private skin: number | null = null;
     private children: Bone[];
     private parent: Bone | null = null;
+
     private rotation: quat;
     private scale: vec3;
     private translation: vec3;
+
+    private defaultScale: vec3;
+    private defaultRotation: quat;
+    private defaultTranslation: vec3;
 
     constructor(bone: GLTFNode, parent: Bone | null, mesh: Mesh | null) {
         const {
@@ -31,8 +36,22 @@ export class Bone {
         this.translation = translation;
         this.initMatrix = matrix;
 
+        this.defaultRotation = rotation;
+        this.defaultScale = scale;
+        this.defaultTranslation = translation;
+
         this.worldMatrix = mat4.create();
         this.calculateMatrix();
+    }
+
+    public default() {
+        this.setTRS(
+            this.defaultTranslation,
+            this.defaultRotation,
+            this.defaultScale
+        );
+
+        this.children.forEach((child) => child.default());
     }
 
     public getWorldMatrix() {
@@ -77,8 +96,6 @@ export class Bone {
         this.translation = translation;
         this.rotation = rotation;
         this.scale = scale;
-
-        this.calculateMatrix();
     }
 
     public update() {

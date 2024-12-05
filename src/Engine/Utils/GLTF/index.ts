@@ -262,7 +262,7 @@ const parseChannels = (channels: GLTFAnimationChannel[]) => {
     return parsedChannels;
 };
 
-const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[]) => {
+const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[], bones: Bone[]) => {
     const { animations } = gltf;
 
     if (!animations) return null;
@@ -275,7 +275,7 @@ const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[]) => {
         const channelsParsed = parseChannels(channels);
 
         bonesAnimations.push(
-            new BoneAnimation(samplersParsed, channelsParsed, name)
+            new BoneAnimation(bones, samplersParsed, channelsParsed, name)
         );
     }
 
@@ -394,15 +394,9 @@ export const parseGLTF = async (gltf: GLTF): Promise<Object> => {
     const { bones } = parseNodes(gltf, meshes);
 
     parseSkins(gltf, bones, bufferData);
-    const bonesAnimations = parseAnimations(gltf, bufferData) ?? [];
+    const bonesAnimations = parseAnimations(gltf, bufferData, bones) ?? [];
 
-    const object = new Object(
-        meshes,
-        [0, 0, 0],
-        [1, 1, 1],
-        bones,
-        bonesAnimations
-    );
+    const object = new Object(meshes, [0, 0, 0], [1, 1, 1], bonesAnimations);
 
     return object;
 };

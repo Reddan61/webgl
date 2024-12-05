@@ -262,7 +262,7 @@ const subscribe = (engine: Engine) => {
 
                 const currentAnimation = lastSelected.getCurrentAnimation();
 
-                animations.forEach((animation, index) => {
+                animations.forEach((animation) => {
                     const isSelected = currentAnimation === animation;
                     const li = document.createElement("li");
                     li.classList.add("AnimationItem");
@@ -277,12 +277,20 @@ const subscribe = (engine: Engine) => {
 
                     li.onclick = () => {
                         const items = ul.getElementsByTagName("li");
+                        const isSelected = li.classList.contains(
+                            "AnimationItem_selected"
+                        );
+
                         for (let i = 0; i < items.length; i++) {
                             items[i].classList.remove("AnimationItem_selected");
                         }
 
-                        lastSelected.selectAnimation(animation);
-                        li.classList.add("AnimationItem_selected");
+                        if (!isSelected) {
+                            lastSelected.selectAnimation(animation);
+                            li.classList.add("AnimationItem_selected");
+                        } else {
+                            lastSelected.selectAnimation(null);
+                        }
                     };
 
                     ul.append(li);

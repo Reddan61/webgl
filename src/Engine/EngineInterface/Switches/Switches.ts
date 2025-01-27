@@ -1,0 +1,46 @@
+import {
+    ENGINE_CONFIG_KEYS,
+    changeEngineConfig,
+    getEngineConfig,
+} from "../../ENGINE_CONFIG/ENGINE_CONFIG";
+import { Switch } from "../Switch/Switch";
+
+import styles from "./Switche.module.scss";
+
+export class Switches {
+    private container: HTMLDivElement;
+    private aabbSwitch: Switch;
+    private shadowMapSwitch: Switch;
+
+    constructor() {
+        this.container = document.createElement("div");
+        this.container.classList.add(styles.container);
+
+        this.aabbSwitch = new Switch(
+            "Show rays",
+            getEngineConfig(ENGINE_CONFIG_KEYS.SHOW_AABB)
+        );
+        this.aabbSwitch.onChange((value) => {
+            changeEngineConfig({
+                [ENGINE_CONFIG_KEYS.SHOW_AABB]: value,
+            });
+        });
+
+        this.shadowMapSwitch = new Switch(
+            "Show point shadow map",
+            getEngineConfig(ENGINE_CONFIG_KEYS.SHOW_POINT_LIGHT_SHADOW_MAP)
+        );
+        this.shadowMapSwitch.onChange((value) => {
+            changeEngineConfig({
+                [ENGINE_CONFIG_KEYS.SHOW_POINT_LIGHT_SHADOW_MAP]: value,
+            });
+        });
+
+        this.container.append(this.aabbSwitch.getElement());
+        this.container.append(this.shadowMapSwitch.getElement());
+    }
+
+    public getElement() {
+        return this.container;
+    }
+}

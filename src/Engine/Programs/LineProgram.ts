@@ -7,8 +7,8 @@ import { ElementBuffer } from "./Buffer/ElementBuffer";
 import { UniformMatrix4fv } from "./Uniform/UniformMatrix4fv";
 import { Uniform4fv } from "./Uniform/Uniform4fv";
 import { Scene } from "../Scene";
-import { ObjectSelector } from "../ObjectSelector";
 import { Camera } from "../Camera";
+import { Engine } from "../Engine";
 
 export type LineProgramVertices = Float32Array;
 export type LineProgramIndices = Uint16Array;
@@ -30,9 +30,10 @@ export class LineProgram extends Program {
         this.matrixInit();
     }
 
-    public draw(scene: Scene, objectSelector: ObjectSelector) {
+    public draw(scene: Scene) {
         this.useProgram();
         this.updateView(scene.getCamera().getView());
+        const objectSelector = Engine.getObjectSelector();
 
         const selectedObject = objectSelector.getSelected();
         const objects = scene.getObjects();

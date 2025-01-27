@@ -3,7 +3,6 @@ import { DirectionalLight } from "./Engine/Light/DirectionalLight/index";
 import "./reset.scss";
 import "./index.scss";
 
-import { Engine } from "./Engine/Engine";
 import { Camera } from "./Engine/Camera";
 import { vec3, vec4 } from "gl-matrix";
 import { Object } from "./Engine/Object";
@@ -22,6 +21,7 @@ import { Mesh } from "./Engine/Mesh";
 import { Scene } from "./Engine/Scene";
 import { PointLight } from "./Engine/Light/PointLight";
 import { Material } from "./Engine/Material";
+import { Engine } from "./Engine/Engine";
 // import msssingTexture from "../resources/missing.png"
 
 const createPointLight = (pointLight: PointLight) => {
@@ -76,6 +76,7 @@ const createScene = async () => {
     wizard.setPosition(vec3.fromValues(20, 0, 0));
     wizard.setScaling(vec3.fromValues(10, 10, 10));
     wizard.setFlipYTexture(false);
+    wizard.setName("wizard");
 
     // const axis = await loadGLTF(axisURL);
     // axis.setPosition([20, 0, 0]);
@@ -83,6 +84,7 @@ const createScene = async () => {
     const shiba = await loadGLTF(shibaURL);
     shiba.setFlipYTexture(false);
     shiba.setPosition([0, 4, -21]);
+    shiba.setName("shiba");
 
     // const shiba2 = ObjectsManager.getObjectsFromParsedGLTF(shibaParsed)[0];
     // shiba2.setPosition([5, 0, 0]);
@@ -99,6 +101,7 @@ const createScene = async () => {
     duck.setPosition([0, 0, -100]);
     duck.setScaling([0.25, 0.25, 0.25]);
     duck.setFlipYTexture(false);
+    duck.setName("duck");
 
     // const duck2 = ObjectsManager.getObjectsFromParsedGLTF(duckParsed)[0];
     // duck2.setPosition([0, 10, -15]);
@@ -110,12 +113,14 @@ const createScene = async () => {
     building.setPosition([0, 0, -500]);
     building.setScaling([0.1, 0.1, 0.1]);
     building.setFlipYTexture(false);
+    building.setName("building");
 
     const elephant = await loadGLTF(elephantURL);
     elephant.setPosition([0, -10, -20]);
     elephant.setScaling([0.15, 0.15, 0.15]);
     elephant.rotate(0, -90);
     elephant.setFlipYTexture(false);
+    elephant.setName("elephant");
 
     // const primitvies = [
     //     new MeshPrimitive(
@@ -204,111 +209,12 @@ const createScene = async () => {
     return scene;
 };
 
-const subscribe = (engine: Engine) => {
-    const objectSelector = engine.getObjectSelector();
-
-    const aabbElement = document.getElementById("aabb");
-    const textureElement = document.getElementById("texture");
-    const fpsElement = document.getElementById("fps");
-    const canvasContainer = document.getElementById("canvasContainer");
-    const objectAnimations = document.getElementById("objectAnimations");
-
-    if (fpsElement) {
-        engine.setTickFunc(() => {
-            fpsElement.innerHTML = `${engine.getFps()} fps`;
-        });
-    }
-
-    if (aabbElement) {
-        aabbElement.addEventListener("change", (e) => {
-            const target = e.target as HTMLInputElement;
-            const checked = target.checked;
-            engine.setShowAABB(checked);
-            target.blur();
-        });
-    }
-    if (textureElement) {
-        textureElement.addEventListener("change", (e) => {
-            const target = e.target as HTMLInputElement;
-            const checked = target.checked;
-            engine.setShowTexture(checked);
-            target.blur();
-        });
-    }
-
-    if (canvasContainer) {
-        window.addEventListener("resize", () => {
-            engine.setCanvasSize(
-                canvasContainer.clientWidth,
-                canvasContainer.clientHeight
-            );
-        });
-    }
-
-    if (!objectAnimations) return;
-
-    objectSelector.addOnChange(({ lastSelected }) => {
-        if (lastSelected) {
-            const animations = lastSelected?.getAnimations();
-            objectAnimations.innerHTML = "";
-
-            if (animations.length) {
-                const ul = document.createElement("ul");
-                ul.id = "objectAnimationList";
-                const title = document.createElement("h3");
-
-                title.append(document.createTextNode("Object Animations:"));
-                ul.append(title);
-
-                const currentAnimation = lastSelected.getCurrentAnimation();
-
-                animations.forEach((animation) => {
-                    const isSelected = currentAnimation === animation;
-                    const li = document.createElement("li");
-                    li.classList.add("AnimationItem");
-
-                    if (isSelected) {
-                        li.classList.add("AnimationItem_selected");
-                    }
-
-                    li.append(
-                        document.createTextNode(`${animation.getName()}`)
-                    );
-
-                    li.onclick = () => {
-                        const items = ul.getElementsByTagName("li");
-                        const isSelected = li.classList.contains(
-                            "AnimationItem_selected"
-                        );
-
-                        for (let i = 0; i < items.length; i++) {
-                            items[i].classList.remove("AnimationItem_selected");
-                        }
-
-                        if (!isSelected) {
-                            lastSelected.selectAnimation(animation);
-                            li.classList.add("AnimationItem_selected");
-                        } else {
-                            lastSelected.selectAnimation(null);
-                        }
-                    };
-
-                    ul.append(li);
-                });
-
-                objectAnimations.append(ul);
-            }
-        }
-    });
-};
-
 const start = async () => {
     const scene = await createScene();
-    const engine = new Engine("canvas", scene);
 
-    engine.run();
-
-    subscribe(engine);
+    Engine.Init();
+    Engine.setScene(scene);
+    Engine.run();
 };
 
 start();

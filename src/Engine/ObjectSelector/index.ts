@@ -1,8 +1,6 @@
 import { vec3, vec4 } from "gl-matrix";
-import { Camera } from "../Camera";
 import { Object } from "../Object";
 import { Ray } from "../Ray";
-import { Rays } from "../Rays";
 import { AABB } from "../AABB";
 
 interface SelectedObject {
@@ -14,8 +12,6 @@ interface SelectedObject {
 type OnChange = (selected: SelectedObject) => void;
 
 export class ObjectSelector {
-    private camera: Camera;
-    private canvas: HTMLCanvasElement;
     private rays: Ray[] = [];
     private selected: SelectedObject = {
         distanceToObject: 0,
@@ -24,10 +20,7 @@ export class ObjectSelector {
     };
     private onChange: OnChange[] = [];
 
-    constructor(canvas: HTMLCanvasElement, camera: Camera) {
-        this.camera = camera;
-        this.canvas = canvas;
-    }
+    constructor() {}
 
     public getRays() {
         return this.rays;
@@ -56,9 +49,7 @@ export class ObjectSelector {
         this.publish();
     }
 
-    public select(screenX: number, screenY: number, objects: Object[]) {
-        const ray = Rays.RayCast(screenX, screenY, this.canvas, this.camera);
-
+    public select(ray: Ray, objects: Object[]) {
         this.rays[0] = ray;
 
         this.selected = this.objectHit(ray, objects);

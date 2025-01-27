@@ -11,6 +11,7 @@ export class Object {
     private flipYTexture = true;
     private scaling: vec3;
     private aabb: AABB;
+    private name = "DefaultObjectName";
 
     private translation: mat4 = mat4.create();
     private scalingMatrix: mat4 = mat4.create();
@@ -80,6 +81,14 @@ export class Object {
     public rotate(xAngle: number, yAngle: number) {
         this.rotation.rotate(xAngle, yAngle);
         this.calculateMatrix();
+    }
+
+    public setName(name: string) {
+        this.name = name;
+    }
+
+    public getName() {
+        return this.name;
     }
 
     public setPosition(position: vec3) {

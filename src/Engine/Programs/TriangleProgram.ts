@@ -18,6 +18,7 @@ import { ShadowAtlasProgram } from "./ShadowAtlasProgram";
 import { ShadowMapProgram } from "./ShadowMapProgram";
 import { Material } from "../Material";
 import { MeshPrimitive } from "../MeshPrimitive";
+import { Object } from "engine/Object";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -91,52 +92,65 @@ export class TriangleProgram extends Program {
         this.updateView(camera.getView());
 
         objects.forEach((object) => {
-            if (object.isSingleFace()) {
-                this.disableCullFace();
-            } else {
-                this.enableCullFace();
-            }
+            this.objectDraw(
+                scene,
+                object,
+                shadowAtlasProgram,
+                shadowMapProgram
+            );
+        });
+    }
 
-            object.getMeshes().forEach((mesh) => {
-                const isLight = Boolean(mesh.getLight());
-                const primitives = mesh.getPrimitives();
-                const skeleton = mesh.getSkeleton();
-                const boneMatrices = skeleton?.getSkinningMatrices();
-                const useBones = !!boneMatrices;
+    private objectDraw(
+        scene: Scene,
+        object: Object,
+        shadowAtlasProgram: ShadowAtlasProgram,
+        shadowMapProgram: ShadowMapProgram
+    ) {
+        if (object.isSingleFace()) {
+            this.disableCullFace();
+        } else {
+            this.enableCullFace();
+        }
 
-                const modelMatrix = object.getMeshModelMatrix(mesh);
-                const normalMatrix = object.getMeshNormalMatrix(mesh);
+        object.getMeshes().forEach((mesh) => {
+            const isLight = Boolean(mesh.getLight());
+            const primitives = mesh.getPrimitives();
+            const skeleton = mesh.getSkeleton();
+            const boneMatrices = skeleton?.getSkinningMatrices();
+            const useBones = !!boneMatrices;
 
-                primitives.forEach((primitive) => {
-                    const material = primitive.getMaterial();
+            const modelMatrix = object.getMeshModelMatrix(mesh);
+            const normalMatrix = object.getMeshNormalMatrix(mesh);
 
-                    this.setVariables({
-                        primitive,
-                        material,
-                        useBones,
-                        scene,
-                        modelMatrix,
-                        normalMatrix,
-                        bonesDataTexture:
-                            skeleton?.getBonesDataTexture() ?? null,
-                        bonesCount: skeleton?.getBonesCount() ?? 0,
-                        shadowMapTexture:
-                            shadowMapProgram.getShadowMapTexture(),
-                        shadowAtlasTexture:
-                            shadowAtlasProgram.getAtlasTexture(),
-                        useLight: !isLight,
-                        colorFactor: material.getColor(),
-                        objectTexture: material.getBaseTexture(),
-                        cameraPosition: new Float32Array(camera.getPosition()),
-                    });
+            primitives.forEach((primitive) => {
+                const material = primitive.getMaterial();
 
-                    this.webgl.drawElements(
-                        this.webgl.TRIANGLES,
-                        primitive.getIndices().length,
-                        this.webgl.UNSIGNED_SHORT,
-                        0
-                    );
+                this.setVariables({
+                    primitive,
+                    material,
+                    useBones,
+                    scene,
+                    modelMatrix,
+                    normalMatrix,
+                    bonesDataTexture: skeleton?.getBonesDataTexture() ?? null,
+                    bonesCount: skeleton?.getBonesCount() ?? 0,
+                    shadowMapTexture: shadowMapProgram.getShadowMapTexture(),
+                    shadowAtlasTexture: shadowAtlasProgram.getAtlasTexture(),
+                    useLight: !isLight,
+                    colorFactor: material.getColor(),
+                    objectTexture: material.getBaseTexture(),
+                    cameraPosition: new Float32Array(
+                        scene.getCamera().getTransform().getPosition()
+                    ),
                 });
+
+                this.webgl.drawElements(
+                    this.webgl.TRIANGLES,
+                    primitive.getIndices().length,
+                    this.webgl.UNSIGNED_SHORT,
+                    0
+                );
             });
         });
     }

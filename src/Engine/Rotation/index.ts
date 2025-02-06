@@ -46,13 +46,13 @@ export class Rotation {
         return this.rotation;
     }
     // x - pitch, y - yaw
-    public rotate(xAngle: number | null, yAngle: number | null) {
-        if (xAngle !== null) {
-            this.xRotate(xAngle);
+    public rotate(pitchAngle: number | null, yawAngle: number | null) {
+        if (pitchAngle !== null) {
+            this.xRotate(pitchAngle);
         }
 
-        if (yAngle !== null) {
-            this.yRotate(yAngle);
+        if (yawAngle !== null) {
+            this.yRotate(yawAngle);
         }
 
         this.calculateRotation();

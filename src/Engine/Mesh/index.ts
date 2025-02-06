@@ -1,8 +1,9 @@
-import { mat3, mat4, vec3 } from "gl-matrix";
+import { mat4, vec3 } from "gl-matrix";
 import { MeshPrimitive } from "../MeshPrimitive";
 import { AABB } from "../AABB";
 import { PointLight } from "../Light/PointLight";
 import { Skeleton } from "../Skeleton";
+import { Transform } from "engine/Transform/Transform";
 
 export class Mesh {
     private webgl: WebGL2RenderingContext | null = null;
@@ -14,13 +15,13 @@ export class Mesh {
 
     private light: PointLight | null = null;
 
-    private modelMatrix = mat4.create();
-    private normalMatrix = mat3.create();
+    private transform: Transform;
 
     constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
         this.skeleton = skeleton;
         this.primitives = primitives;
 
+        this.transform = new Transform();
         this.createAABB();
     }
 
@@ -60,22 +61,13 @@ export class Mesh {
         this.createAABB();
     }
 
-    public getNormalMatrix() {
-        return this.normalMatrix;
-    }
-
     public setModelMatrix(matrix: mat4) {
-        this.modelMatrix = matrix;
-        this.calculateNormalMatrix();
+        this.transform.setModelMatrix(matrix);
         this.createAABB();
     }
 
-    public getModelMatrix() {
-        return this.modelMatrix;
-    }
-
-    private calculateNormalMatrix() {
-        mat3.normalFromMat4(this.normalMatrix, this.modelMatrix);
+    public getTransform() {
+        return this.transform;
     }
 
     private _getSkinnedAABBFromPrimitives() {
@@ -85,10 +77,8 @@ export class Mesh {
 
         const skinningMatrices = this.skeleton.getSkinningMatrices();
 
-        const aabb = new AABB(
-            vec3.fromValues(-Infinity, -Infinity, -Infinity),
-            vec3.fromValues(Infinity, Infinity, Infinity)
-        );
+        const aabbMin = vec3.fromValues(Infinity, Infinity, Infinity);
+        const aabbMax = vec3.fromValues(-Infinity, -Infinity, -Infinity);
 
         this.primitives.forEach((primitive) => {
             const vertices = primitive.getVertices();
@@ -130,12 +120,12 @@ export class Mesh {
                     }
                 }
 
-                aabb.checkMin(transformedVertex);
-                aabb.checkMax(transformedVertex);
+                vec3.min(aabbMin, aabbMin, transformedVertex);
+                vec3.max(aabbMax, aabbMax, transformedVertex);
             }
         });
 
-        return aabb;
+        return new AABB(aabbMax, aabbMin);
     }
 
     private createAABB() {
@@ -147,34 +137,38 @@ export class Mesh {
             return;
         }
 
-        const primitiveAABB = new AABB(
-            vec3.fromValues(-Infinity, -Infinity, -Infinity),
-            vec3.fromValues(Infinity, Infinity, Infinity)
+        const primitiveAABBMin = vec3.fromValues(Infinity, Infinity, Infinity);
+        const primitiveAABBMax = vec3.fromValues(
+            -Infinity,
+            -Infinity,
+            -Infinity
         );
 
         this.primitives.forEach((primitive) => {
-            const aabb = primitive.getAABB();
-            primitiveAABB.minMaxAABB(aabb);
+            const { max, min } = primitive.getAABB().getMaxMin();
+
+            vec3.min(primitiveAABBMin, primitiveAABBMin, min);
+            vec3.max(primitiveAABBMax, primitiveAABBMax, max);
         });
+
+        const primitiveAABB = new AABB(primitiveAABBMax, primitiveAABBMin);
 
         const corners = primitiveAABB.getCorners();
 
-        const resultAABB = new AABB(
-            vec3.fromValues(-Infinity, -Infinity, -Infinity),
-            vec3.fromValues(Infinity, Infinity, Infinity)
-        );
+        const resultAABBMin = vec3.fromValues(Infinity, Infinity, Infinity);
+        const resultAABBMax = vec3.fromValues(-Infinity, -Infinity, -Infinity);
 
         corners.forEach((corner) => {
             const transformedCorner = vec3.transformMat4(
                 vec3.create(),
                 corner,
-                this.modelMatrix
+                this.transform.getModelMatrix()
             );
 
-            resultAABB.checkMax(transformedCorner);
-            resultAABB.checkMin(transformedCorner);
+            vec3.min(resultAABBMin, resultAABBMin, transformedCorner);
+            vec3.max(resultAABBMax, resultAABBMax, transformedCorner);
         });
 
-        this.aabb = resultAABB;
+        this.aabb = new AABB(resultAABBMax, resultAABBMin);
     }
 }

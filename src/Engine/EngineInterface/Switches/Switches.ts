@@ -11,6 +11,7 @@ export class Switches {
     private container: HTMLDivElement;
     private aabbSwitch: Switch;
     private shadowMapSwitch: Switch;
+    private showRayCastHit: Switch;
 
     constructor() {
         this.container = document.createElement("div");
@@ -36,8 +37,19 @@ export class Switches {
             });
         });
 
+        this.showRayCastHit = new Switch(
+            "Show ray cast hit",
+            getEngineConfig(ENGINE_CONFIG_KEYS.SHOW_RAY_CAST_HIT_POINT)
+        );
+        this.showRayCastHit.onChange((value) => {
+            changeEngineConfig({
+                [ENGINE_CONFIG_KEYS.SHOW_RAY_CAST_HIT_POINT]: value,
+            });
+        });
+
         this.container.append(this.aabbSwitch.getElement());
         this.container.append(this.shadowMapSwitch.getElement());
+        this.container.append(this.showRayCastHit.getElement());
     }
 
     public getElement() {

@@ -1,11 +1,27 @@
 import { glMatrix, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "../Rotation";
+import { Transform } from "engine/Transform/Transform";
 
 export class Camera {
+    private speed = 10.0;
+    private arrowSens = 30.0;
+    private mouseSens = 0.1;
+    private transform: Transform;
+    // private position: vec3;
+    private view: mat4;
+    private projection: mat4;
+    // private rotation: Rotation;
+    private keys: Record<KeyboardEvent["code"], boolean> = {};
+    private isMouseDown = false;
+    private lastMouseX = 0;
+    private lastMouseY = 0;
+
     constructor(position: vec3) {
-        this.rotation = new Rotation();
-        this.position = position;
+        // this.rotation = new Rotation();
+        // this.position = position;
         this.view = mat4.create();
+        this.transform = new Transform();
+        this.transform.setPosition(position);
 
         this.calculateView();
 
@@ -28,8 +44,8 @@ export class Camera {
         return this.view;
     }
 
-    public getPosition() {
-        return this.position;
+    public getTransform() {
+        return this.transform;
     }
 
     public getProjection() {
@@ -40,23 +56,14 @@ export class Camera {
         this.manageKeys(delta);
     }
 
-    private speed = 10.0;
-    private arrowSens = 30.0;
-    private mouseSens = 0.1;
-    private position: vec3;
-    private view: mat4;
-    private projection: mat4;
-    private rotation: Rotation;
-    private keys: Record<KeyboardEvent["code"], boolean> = {};
-    private isMouseDown = false;
-    private lastMouseX = 0;
-    private lastMouseY = 0;
-
     private calculateView() {
-        const target = vec3.create();
-        vec3.add(target, this.position, this.rotation.getFront());
+        const position = this.transform.getPosition();
+        const rotation = this.transform.getRotation();
 
-        mat4.lookAt(this.view, this.position, target, this.rotation.getUp());
+        const target = vec3.create();
+        vec3.add(target, position, rotation.getFront());
+
+        mat4.lookAt(this.view, position, target, rotation.getUp());
     }
 
     private subscribeEvents() {
@@ -89,9 +96,11 @@ export class Camera {
             const deltaX = (e.clientX - this.lastMouseX) * this.mouseSens;
             const deltaY = (e.clientY - this.lastMouseY) * this.mouseSens;
 
-            this.rotation.rotate(
-                this.rotation.getXAngle() + deltaY,
-                this.rotation.getYAngle() + deltaX
+            const rotation = this.transform.getRotation();
+
+            rotation.rotate(
+                rotation.getXAngle() + deltaY,
+                rotation.getYAngle() + deltaX
             );
             this.calculateView();
 
@@ -104,81 +113,95 @@ export class Camera {
         let isChanged = false;
         const newSpeed = this.speed * delta;
         const newSens = this.arrowSens * delta;
+        const transform = this.transform;
+        const rotation = transform.getRotation();
 
         if (this.keys["KeyA"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getRight(), newSpeed);
+            vec3.scale(temp, rotation.getRight(), newSpeed);
 
-            vec3.subtract(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.subtract(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["KeyD"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getRight(), newSpeed);
+            vec3.scale(temp, rotation.getRight(), newSpeed);
 
-            vec3.add(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.add(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["KeyW"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getFront(), newSpeed);
+            vec3.scale(temp, rotation.getFront(), newSpeed);
 
-            vec3.add(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.add(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["KeyS"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getFront(), newSpeed);
+            vec3.scale(temp, rotation.getFront(), newSpeed);
 
-            vec3.subtract(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.subtract(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["Space"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getUp(), newSpeed);
+            vec3.scale(temp, rotation.getUp(), newSpeed);
 
-            vec3.add(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.add(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["ShiftLeft"]) {
             const temp = vec3.create();
-            vec3.scale(temp, this.rotation.getUp(), newSpeed);
+            vec3.scale(temp, rotation.getUp(), newSpeed);
 
-            vec3.subtract(this.position, this.position, temp);
+            transform.setPosition(
+                vec3.subtract(vec3.create(), transform.getPosition(), temp)
+            );
 
             isChanged = true;
         }
 
         if (this.keys["ArrowLeft"]) {
-            this.rotation.rotate(null, this.rotation.getYAngle() + newSens);
+            rotation.rotate(null, rotation.getYAngle() + newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowRight"]) {
-            this.rotation.rotate(null, this.rotation.getYAngle() - newSens);
+            rotation.rotate(null, rotation.getYAngle() - newSens);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowUp"]) {
-            this.rotation.rotate(this.rotation.getXAngle() + newSens, null);
+            rotation.rotate(rotation.getXAngle() + newSens, null);
 
             isChanged = true;
         }
 
         if (this.keys["ArrowDown"]) {
-            this.rotation.rotate(this.rotation.getXAngle() - newSens, null);
+            rotation.rotate(rotation.getXAngle() - newSens, null);
 
             isChanged = true;
         }

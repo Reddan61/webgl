@@ -12,6 +12,10 @@ module.exports = {
     mode: "development",
     resolve: {
         extensions: [".ts", ".tsx", ".js"],
+        alias: {
+            resources: path.resolve(__dirname, "resources"),
+            engine: path.resolve(__dirname, "src", "Engine"),
+        },
     },
     devServer: {
         devMiddleware: {

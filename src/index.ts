@@ -6,15 +6,12 @@ import "./index.scss";
 import { Camera } from "./Engine/Camera";
 import { vec3, vec4 } from "gl-matrix";
 import { Object } from "./Engine/Object";
-import { createSphere, loadGLTF } from "./Engine/Utils/Utils";
+import { loadGLTF } from "./Engine/Utils/Utils";
 
-// import susURL from "../resources/sus.obj";
-// import susTexture from "../resources/sus.png";
 import duckURL from "../resources/duck/duck.gltf";
 import shibaURL from "../resources/shiba/shiba.gltf";
 import wizardURL from "../resources/wizard/scene.gltf";
 import buildingURL from "../resources/building/building.gltf";
-import axisURL from "../resources/axis/axis.gltf";
 import elephantURL from "../resources/elephant/elephant.gltf";
 import { MeshPrimitive } from "./Engine/MeshPrimitive";
 import { Mesh } from "./Engine/Mesh";
@@ -22,7 +19,7 @@ import { Scene } from "./Engine/Scene";
 import { PointLight } from "./Engine/Light/PointLight";
 import { Material } from "./Engine/Material";
 import { Engine } from "./Engine/Engine";
-// import msssingTexture from "../resources/missing.png"
+import { createSphere } from "engine/Utils/CreateObjects/createSphere";
 
 const createPointLight = (pointLight: PointLight) => {
     const sphere = createSphere(2, 15);
@@ -72,9 +69,9 @@ const createScene = async () => {
     // const susParsed = await loadObj(susURL);
 
     const wizard = await loadGLTF(wizardURL);
-    wizard.rotate(0, -90);
-    wizard.setPosition(vec3.fromValues(20, 0, 0));
-    wizard.setScaling(vec3.fromValues(10, 10, 10));
+    wizard.getTransform().rotate(0, -90);
+    wizard.getTransform().setPosition(vec3.fromValues(20, 0, 0));
+    wizard.getTransform().setScaling(vec3.fromValues(10, 10, 10));
     wizard.setFlipYTexture(false);
     wizard.setName("wizard");
 
@@ -83,7 +80,7 @@ const createScene = async () => {
 
     const shiba = await loadGLTF(shibaURL);
     shiba.setFlipYTexture(false);
-    shiba.setPosition([0, 4, -21]);
+    shiba.getTransform().setPosition([0, 4, -21]);
     shiba.setName("shiba");
 
     // const shiba2 = ObjectsManager.getObjectsFromParsedGLTF(shibaParsed)[0];
@@ -98,8 +95,8 @@ const createScene = async () => {
     // shiba3.setFlipYTexture(false);
 
     const duck = await loadGLTF(duckURL);
-    duck.setPosition([0, 0, -100]);
-    duck.setScaling([0.25, 0.25, 0.25]);
+    duck.getTransform().setPosition([0, 0, -100]);
+    duck.getTransform().setScaling([0.25, 0.25, 0.25]);
     duck.setFlipYTexture(false);
     duck.setName("duck");
 
@@ -110,15 +107,15 @@ const createScene = async () => {
     // duck2.setFlipYTexture(false);
 
     const building = await loadGLTF(buildingURL);
-    building.setPosition([0, 0, -500]);
-    building.setScaling([0.1, 0.1, 0.1]);
+    building.getTransform().setPosition([0, 0, -500]);
+    building.getTransform().setScaling([0.1, 0.1, 0.1]);
     building.setFlipYTexture(false);
     building.setName("building");
 
     const elephant = await loadGLTF(elephantURL);
-    elephant.setPosition([0, -10, -20]);
-    elephant.setScaling([0.15, 0.15, 0.15]);
-    elephant.rotate(0, -90);
+    elephant.getTransform().setPosition([0, -10, -20]);
+    elephant.getTransform().setScaling([0.15, 0.15, 0.15]);
+    elephant.getTransform().rotate(0, -90);
     elephant.setFlipYTexture(false);
     elephant.setName("elephant");
 
@@ -178,7 +175,7 @@ const createScene = async () => {
 
     const pointLightObject1 = createPointLight(pointLight1);
     const pointLightObject2 = createPointLight(pointLight2);
-    const pointLightObject3 = createPointLight(pointLight3);
+    // const pointLightObject3 = createPointLight(pointLight3);
     // const pointLightObject4 = createPointLight(pointLight4);
     // const pointLightObject5 = createPointLight(pointLight5);
 
@@ -186,23 +183,19 @@ const createScene = async () => {
 
     scene.addPointLight(pointLight1);
     scene.addPointLight(pointLight2);
-    scene.addPointLight(pointLight3);
+    // scene.addPointLight(pointLight3);
     // scene.addPointLight(pointLight4);
     // scene.addPointLight(pointLight5);
 
     // scene.addObject(sus);
     scene.addObject(duck);
-    // scene.addObject(duck2);
     scene.addObject(shiba);
-    // scene.addObject(shiba2);
-    // scene.addObject(shiba3);
     scene.addObject(building);
-    // scene.addObject(axis);
     scene.addObject(wizard);
     scene.addObject(elephant);
     scene.addObject(pointLightObject1);
     scene.addObject(pointLightObject2);
-    scene.addObject(pointLightObject3);
+    // scene.addObject(pointLightObject3);
     // scene.addObject(pointLightObject4);
     // scene.addObject(pointLightObject5);
 
@@ -212,7 +205,7 @@ const createScene = async () => {
 const start = async () => {
     const scene = await createScene();
 
-    Engine.Init();
+    await Engine.Init();
     Engine.setScene(scene);
     Engine.run();
 };

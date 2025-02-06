@@ -23,9 +23,9 @@ export class ObjectList {
         this.setItems(Engine.getScene());
         Engine.onSetScene(this.onSetSceneSubscriber);
 
-        Engine.getObjectSelector().addOnChange(({ lastSelected }) => {
+        Engine.getObjectSelector().addOnChange(({ entity }) => {
             this.objectList.forEach(({ el, object }) => {
-                if (object === lastSelected) {
+                if (object === entity?.object) {
                     el.classList.add(styles.selected);
                 } else {
                     el.classList.remove(styles.selected);

@@ -40,8 +40,8 @@ export class LineProgram extends Program {
         const camera = scene.getCamera();
 
         objects.forEach((object) => {
-            const modelMatrix = object.getModelMatrix();
-            const isSelected = selectedObject?.object === object;
+            const modelMatrix = object.getTransform().getModelMatrix();
+            const isSelected = selectedObject?.entity?.object === object;
 
             const aabb = object.getAABB();
             const aabbIndices = aabb.getIndices();

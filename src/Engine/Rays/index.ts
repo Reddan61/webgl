@@ -37,6 +37,6 @@ export class Rays {
         const dir = vec3.fromValues(world[0], world[1], world[2]);
         vec3.normalize(dir, dir);
 
-        return new Ray(camera.getPosition(), dir);
+        return new Ray(camera.getTransform().getPosition(), dir);
     }
 }

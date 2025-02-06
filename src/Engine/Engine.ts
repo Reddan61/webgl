@@ -1,10 +1,10 @@
-import { vec3 } from "gl-matrix";
 import { Canvas } from "./EngineInterface/Canvas/Canvas";
 import { EngineInterface } from "./EngineInterface/EngineInterface";
 import { ObjectSelector } from "./ObjectSelector";
 import { Rays } from "./Rays";
 import { Render } from "./Render";
 import { Scene } from "./Scene";
+import { Gizmo } from "engine/Gizmo/Gizmo";
 
 type SceneSubscriberCb = (scene: Scene | null) => void;
 export class Engine {
@@ -21,9 +21,7 @@ export class Engine {
 
     private static onSetSceneSubscribers: SceneSubscriberCb[] = [];
 
-    private static isMouseDown = false;
-
-    public static Init() {
+    public static async Init() {
         Engine.objectSelector = new ObjectSelector();
 
         Engine.engineInterface = new EngineInterface(document.body);
@@ -35,6 +33,8 @@ export class Engine {
         });
 
         Engine.render = new Render(Engine.canvas.getRenderView());
+        Gizmo.init();
+
         Engine.subscribe();
     }
 
@@ -88,15 +88,17 @@ export class Engine {
         return Engine.objectSelector;
     }
 
+    public static getCanvas() {
+        return Engine.canvas;
+    }
+
     private static subscribe() {
         const renderView = Engine.canvas.getRenderView();
 
-        renderView.addEventListener("mousedown", (e) => {
+        renderView.addEventListener("click", (e) => {
             const isLeftClick = e.button === 0;
 
             if (isLeftClick && Engine.scene) {
-                Engine.isMouseDown = true;
-
                 const ray = Rays.RayCast(
                     e.clientX,
                     e.clientY,
@@ -105,67 +107,6 @@ export class Engine {
                 );
 
                 Engine.objectSelector.select(ray, Engine.scene.getObjects());
-            }
-        });
-
-        renderView.addEventListener("mousemove", (e) => {
-            if (!Engine.isMouseDown || !Engine.scene) return;
-
-            const selected = Engine.objectSelector.getSelected();
-
-            if (selected?.object) {
-                const camera = Engine.scene.getCamera();
-
-                const ray = Rays.RayCast(
-                    e.clientX,
-                    e.clientY,
-                    Engine.canvas.getRenderView(),
-                    camera
-                );
-
-                const t = vec3.distance(
-                    camera.getPosition(),
-                    selected.object.getPosition()
-                );
-
-                const point = vec3.create();
-
-                vec3.scaleAndAdd(
-                    point,
-                    camera.getPosition(),
-                    ray.getDirection(),
-                    t
-                );
-                selected.object.setPosition(point);
-            }
-        });
-
-        renderView.addEventListener("mouseup", (e) => {
-            Engine.objectSelector.clear();
-            Engine.isMouseDown = false;
-        });
-
-        renderView.addEventListener("wheel", (e) => {
-            const selected = Engine.objectSelector.getSelected();
-
-            if (selected?.object && Engine.scene) {
-                const ray = Rays.RayCast(
-                    e.clientX,
-                    e.clientY,
-                    Engine.canvas.getRenderView(),
-                    Engine.scene.getCamera()
-                );
-
-                const deltaY = e.deltaY * -0.01;
-                const point = vec3.create();
-
-                vec3.scaleAndAdd(
-                    point,
-                    selected.object.getPosition(),
-                    ray.getDirection(),
-                    deltaY
-                );
-                selected.object.setPosition(point);
             }
         });
     }

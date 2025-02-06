@@ -1,25 +1,17 @@
 import { mat3, mat4, vec3 } from "gl-matrix";
-import { Rotation } from "../Rotation";
 import { Mesh } from "../Mesh";
 import { BoneAnimation } from "../Animation/BoneAnimation";
 import { AABB } from "../AABB";
+import { Transform } from "engine/Transform/Transform";
 
 export class Object {
-    private position: vec3;
     private meshes: Mesh[];
     private singleFace = false;
     private flipYTexture = true;
-    private scaling: vec3;
     private aabb: AABB;
     private name = "DefaultObjectName";
 
-    private translation: mat4 = mat4.create();
-    private scalingMatrix: mat4 = mat4.create();
-    private transformMatrix: mat4 = mat4.create();
-    private normalMatrix: mat3 = mat3.create();
-    private modelMatrix: mat4 = mat4.create();
-
-    private rotation: Rotation;
+    private transform: Transform;
 
     private animations: BoneAnimation[] = [];
     private selectedAnimation: BoneAnimation | null = null;
@@ -30,13 +22,12 @@ export class Object {
         scaling: vec3,
         animations: BoneAnimation[] = []
     ) {
-        this.position = position;
         this.meshes = meshes;
-        this.rotation = new Rotation();
-        this.scaling = scaling;
         this.animations = animations;
 
-        this.calculateMatrix();
+        this.transform = new Transform();
+        this.transform.setPosition(position);
+        this.transform.setScaling(scaling);
         this.createAABB();
     }
 
@@ -44,14 +35,6 @@ export class Object {
         this.meshes.forEach((mesh) => {
             mesh._setWebGl(webgl);
         });
-    }
-
-    public getModelMatrix() {
-        return this.modelMatrix;
-    }
-
-    public getNormalMatrix() {
-        return this.normalMatrix;
     }
 
     public getMeshes() {
@@ -78,57 +61,12 @@ export class Object {
         this.singleFace = bool;
     }
 
-    public rotate(xAngle: number, yAngle: number) {
-        this.rotation.rotate(xAngle, yAngle);
-        this.calculateMatrix();
-    }
-
     public setName(name: string) {
         this.name = name;
     }
 
     public getName() {
         return this.name;
-    }
-
-    public setPosition(position: vec3) {
-        this.position = position;
-        this.meshes.forEach((mesh) =>
-            mesh.getLight()?.setPosition(this.position)
-        );
-        this.calculateMatrix();
-    }
-
-    public setPositionX(num: number) {
-        this.setPosition(
-            vec3.fromValues(num, this.position[1], this.position[2])
-        );
-    }
-
-    public setPositionY(num: number) {
-        this.setPosition(
-            vec3.fromValues(this.position[0], num, this.position[2])
-        );
-    }
-
-    public setPositionZ(num: number) {
-        this.setPosition(
-            vec3.fromValues(this.position[0], this.position[1], num)
-        );
-    }
-
-    public addPosition(deltaPos: vec3) {
-        vec3.add(this.position, this.position, deltaPos);
-        this.calculateMatrix();
-    }
-
-    public getPosition() {
-        return this.position;
-    }
-
-    public setScaling(scaling: vec3) {
-        this.scaling = scaling;
-        this.calculateMatrix();
     }
 
     public update() {
@@ -152,15 +90,19 @@ export class Object {
             ? // we need to mul because we dont have skinning in shaders
               mat4.multiply(
                   mat4.create(),
-                  this.getModelMatrix(),
-                  mesh.getModelMatrix()
+                  this.transform.getModelMatrix(),
+                  mesh.getTransform().getModelMatrix()
               )
             : // it will transform with skinning matrix in shader
-              this.getModelMatrix();
+              this.transform.getModelMatrix();
     }
 
     public getAnimations() {
         return this.animations;
+    }
+
+    public getTransform() {
+        return this.transform;
     }
 
     public getMeshNormalMatrix(mesh: Mesh) {
@@ -168,24 +110,11 @@ export class Object {
             ? // we need to mul because we dont have skinning in shaders
               mat3.multiply(
                   mat3.create(),
-                  this.getNormalMatrix(),
-                  mesh.getNormalMatrix()
+                  this.transform.getNormalMatrix(),
+                  mesh.getTransform().getNormalMatrix()
               )
             : // it will transform with skinning matrix in shader
-              this.getNormalMatrix();
-    }
-
-    private calculateMatrix() {
-        mat4.fromScaling(this.scalingMatrix, this.scaling);
-        mat4.fromTranslation(this.translation, this.position);
-
-        mat4.mul(this.transformMatrix, this.translation, this.scalingMatrix);
-        mat4.mul(
-            this.modelMatrix,
-            this.transformMatrix,
-            this.rotation.getRotation()
-        );
-        mat3.normalFromMat4(this.normalMatrix, this.modelMatrix);
+              this.transform.getNormalMatrix();
     }
 
     private createAABB() {

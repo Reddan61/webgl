@@ -49,7 +49,11 @@ export class MeshPrimitive {
         this.vertices = new Float32Array(vertices.data);
         this.indices = new Uint16Array(indices);
         this.normals = new Float32Array(normals);
-        this.textureCoords = new Float32Array(textureCoords);
+        this.textureCoords = new Float32Array(
+            textureCoords.length == 0
+                ? this.generateDataForVertexLength(vertices.data, 2)
+                : textureCoords
+        );
         this.weight = new Float32Array(
             weight ?? this.generateDataForVertexLength(vertices.data)
         );
@@ -65,9 +69,12 @@ export class MeshPrimitive {
         this.aabb = new AABB(vertices.max as vec3, vertices.min as vec3);
     }
 
-    private generateDataForVertexLength(vertices: number[]) {
+    private generateDataForVertexLength(
+        vertices: number[],
+        newLengthPerElement = 4
+    ) {
         const verticesLength = vertices.length / 3;
-        const newLength = verticesLength * 4;
+        const newLength = verticesLength * newLengthPerElement;
         const result = new Float32Array(newLength);
 
         for (let i = 0; i < newLength; i++) {

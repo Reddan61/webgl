@@ -1,6 +1,5 @@
 import { TriangleProgram } from "./Programs/TriangleProgram";
 import { LineProgram } from "./Programs/LineProgram";
-import { ObjectSelector } from "./ObjectSelector";
 import { Scene } from "./Scene";
 import { ShadowMapProgram } from "./Programs/ShadowMapProgram";
 import { ShadowAtlasProgram } from "./Programs/ShadowAtlasProgram";
@@ -9,6 +8,8 @@ import {
     ENGINE_CONFIG_KEYS,
     getEngineConfig,
 } from "./ENGINE_CONFIG/ENGINE_CONFIG";
+import { DotProgram } from "engine/Programs/DotProgram/DotProgram";
+import { GizmoProgram } from "engine/Programs/GizmoProgram/GizmoProgram";
 
 export class Render {
     private canvas: HTMLCanvasElement;
@@ -18,6 +19,8 @@ export class Render {
     private shadowMapProgram: ShadowMapProgram;
     private shadowAtlasProgram: ShadowAtlasProgram;
     private textureShowProgram: TextureShowProgram;
+    private gizmoProgram: GizmoProgram;
+    private dotProgram: DotProgram;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -35,6 +38,8 @@ export class Render {
         this.shadowMapProgram = new ShadowMapProgram(this.webgl);
         this.shadowAtlasProgram = new ShadowAtlasProgram(this.webgl);
         this.textureShowProgram = new TextureShowProgram(this.webgl);
+        this.gizmoProgram = new GizmoProgram(this.webgl);
+        this.dotProgram = new DotProgram(this.webgl);
 
         this.webgl.clearColor(0.75, 0.85, 0.8, 1.0);
         this.webgl.clear(
@@ -84,6 +89,12 @@ export class Render {
         if (getEngineConfig(ENGINE_CONFIG_KEYS.SHOW_AABB)) {
             this.lineProgram.draw(scene);
         }
+
+        this.gizmoProgram.draw(scene);
+
+        if (getEngineConfig(ENGINE_CONFIG_KEYS.SHOW_RAY_CAST_HIT_POINT)) {
+            this.dotProgram.draw(scene);
+        }
     }
 
     private clear() {
@@ -99,8 +110,4 @@ export class Render {
         this.webgl.frontFace(this.webgl.CCW);
         this.webgl.cullFace(this.webgl.BACK);
     }
-
-    // private disableCullFace() {
-    //     this.webgl.disable(this.webgl.CULL_FACE);
-    // }
 }

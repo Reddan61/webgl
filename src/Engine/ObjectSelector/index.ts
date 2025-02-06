@@ -2,11 +2,24 @@ import { vec3, vec4 } from "gl-matrix";
 import { Object } from "../Object";
 import { Ray } from "../Ray";
 import { AABB } from "../AABB";
+import { Mesh } from "engine/Mesh";
 
 interface SelectedObject {
-    object: Object | null;
-    distanceToObject: number;
-    lastSelected: Object | null;
+    entity: {
+        object: Object;
+        mesh: Mesh;
+        hit: Hit;
+    } | null;
+    lastSelected: {
+        object: Object;
+        mesh: Mesh;
+    } | null;
+}
+
+interface Hit {
+    near: number;
+    far: number;
+    point: vec3;
 }
 
 type OnChange = (selected: SelectedObject) => void;
@@ -14,9 +27,8 @@ type OnChange = (selected: SelectedObject) => void;
 export class ObjectSelector {
     private rays: Ray[] = [];
     private selected: SelectedObject = {
-        distanceToObject: 0,
         lastSelected: null,
-        object: null,
+        entity: null,
     };
     private onChange: OnChange[] = [];
 
@@ -42,9 +54,8 @@ export class ObjectSelector {
 
     public clear() {
         this.selected = {
-            distanceToObject: 0,
             lastSelected: null,
-            object: null,
+            entity: null,
         };
         this.publish();
     }
@@ -59,51 +70,76 @@ export class ObjectSelector {
     private objectHit(ray: Ray, objects: Object[]): SelectedObject {
         const nearest = {
             distToHit: Infinity,
-            object: null as Object | null,
+            entity: null as {
+                object: Object;
+                mesh: Mesh;
+                hit: Hit;
+            } | null,
         };
 
         objects.forEach((object) => {
-            const model = object.getModelMatrix();
+            const nearestMesh = {
+                distToHit: Infinity,
+                mesh: null as Mesh | null,
+                hit: null as Hit | null,
+            };
 
-            const aabb = object.getAABB();
-            const { max, min } = aabb.getMaxMin();
-            // получение мировых координат aabb
-            const convMax = vec4.create();
-            const convMin = vec4.create();
-            vec4.transformMat4(
-                convMax,
-                vec4.fromValues(max[0], max[1], max[2], 1.0),
-                model
-            );
-            vec4.transformMat4(
-                convMin,
-                vec4.fromValues(min[0], min[1], min[2], 1.0),
-                model
-            );
+            object.getMeshes().forEach((mesh) => {
+                const model = object.getMeshModelMatrix(mesh);
 
-            const hitAABB = new AABB(
-                vec3.fromValues(convMax[0], convMax[1], convMax[2]),
-                vec3.fromValues(convMin[0], convMin[1], convMin[2])
-            );
+                const aabb = mesh.getAABB();
+                const { max, min } = aabb.getMaxMin();
+                // get world coords of aabb
+                const convMax = vec4.create();
+                const convMin = vec4.create();
+                vec4.transformMat4(
+                    convMax,
+                    vec4.fromValues(max[0], max[1], max[2], 1.0),
+                    model
+                );
+                vec4.transformMat4(
+                    convMin,
+                    vec4.fromValues(min[0], min[1], min[2], 1.0),
+                    model
+                );
 
-            const hit = this.aabbHit(ray, hitAABB);
+                const hitAABB = new AABB(
+                    vec3.fromValues(convMax[0], convMax[1], convMax[2]),
+                    vec3.fromValues(convMin[0], convMin[1], convMin[2])
+                );
 
-            if (!hit) return;
+                const hit = this.aabbHit(ray, hitAABB);
 
-            if (hit.near < nearest.distToHit) {
-                nearest.distToHit = hit.near;
-                nearest.object = object;
+                if (!hit) return;
+
+                if (hit.near < nearestMesh.distToHit) {
+                    nearestMesh.distToHit = hit.near;
+                    nearestMesh.hit = hit;
+                    nearestMesh.mesh = mesh;
+                }
+            });
+
+            if (nearestMesh.distToHit < nearest.distToHit) {
+                nearest.distToHit = nearestMesh.distToHit;
+
+                if (nearestMesh.mesh) {
+                    nearest.entity = {
+                        ...(nearest.entity ?? {}),
+                        hit: nearestMesh.hit as Hit,
+                        object,
+                        mesh: nearestMesh.mesh,
+                    };
+                }
             }
         });
 
         return {
-            distanceToObject: nearest.distToHit,
-            object: nearest.object,
-            lastSelected: nearest.object ?? this.selected?.object ?? null,
+            entity: nearest.entity,
+            lastSelected: nearest.entity ?? this.selected?.entity ?? null,
         };
     }
 
-    private aabbHit(ray: Ray, aabb: AABB) {
+    private aabbHit(ray: Ray, aabb: AABB): Hit | null {
         const invDirection = vec3.create();
         vec3.inverse(invDirection, ray.getDirection());
         const tMin = vec3.create();
@@ -129,9 +165,14 @@ export class ObjectSelector {
             return null;
         }
 
+        const point = vec3.create();
+
+        vec3.scaleAndAdd(point, ray.getOrigin(), ray.getDirection(), near);
+
         return {
             near,
             far,
+            point,
         };
     }
 }

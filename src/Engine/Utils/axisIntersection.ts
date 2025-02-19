@@ -2,7 +2,11 @@ import { vec3 } from "gl-matrix";
 import { Ray } from "engine/Ray";
 import { AXIS_ENUM } from "engine/Utils/types";
 
-export const axisIntersection = (ray: Ray, position: vec3, axis: AXIS_ENUM) => {
+export const axisIntersection = (
+    ray: Ray,
+    position: vec3,
+    axis: AXIS_ENUM
+): null | vec3 => {
     const dir = ray.getDirection();
     const origin = ray.getOrigin();
     const axisDir = vec3.create();

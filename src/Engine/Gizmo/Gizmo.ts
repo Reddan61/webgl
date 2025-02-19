@@ -1,52 +1,45 @@
-import { vec3, vec4 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 import { Object } from "engine/Object";
 import { Engine } from "engine/Engine";
 import { ObjectSelector } from "engine/ObjectSelector";
 import { Rays } from "engine/Rays";
-import { Mesh } from "engine/Mesh";
-import { AXIS_ENUM } from "engine/Utils/types";
 import { axisIntersection } from "engine/Utils/axisIntersection";
-import { createArrow } from "engine/Utils/CreateObjects/createArrow";
+import { Ray } from "engine/Ray";
+import { Scale } from "engine/Gizmo/Scale";
+import { GizmoType } from "engine/Gizmo/GizmoType";
+import { Translation } from "engine/Gizmo/Translation";
 
+export enum GIZMO_TYPE_ENUM {
+    TRANSLATION = "TRANSLATION",
+    SCALE = "SCALE",
+}
+
+type SubscriberType = (type: GIZMO_TYPE_ENUM) => void;
 export class Gizmo {
+    private static isMoving = false;
     private static show = false;
-    private static movingModel: Object;
     private static objectSelector: ObjectSelector;
     private static isMouseDown = false;
     private static offset = vec3.create();
     private static initGizmoScaling = vec3.create();
 
+    private static currentGizmo: GizmoType;
+    private static currentGizmoType = GIZMO_TYPE_ENUM.TRANSLATION;
+    private static gizmoTypes: Record<GIZMO_TYPE_ENUM, GizmoType> = {
+        [GIZMO_TYPE_ENUM.TRANSLATION]: new Translation(),
+        [GIZMO_TYPE_ENUM.SCALE]: new Scale(),
+    };
+
+    private static subscribersChangeTypeCb: SubscriberType[] = [];
+
     public static init() {
-        const alpha = 1;
-        this.objectSelector = new ObjectSelector();
-        const arrowZMesh = createArrow(vec4.fromValues(0, 0, 1, alpha));
-        arrowZMesh
-            .getTransform()
-            .setScaling([1, 1, 1.5])
-            .setPosition([0, 0, 0.05]);
-        const arrowYMesh = createArrow(vec4.fromValues(0, 1, 0, alpha));
-        arrowYMesh
-            .getTransform()
-            .setScaling([1, 1.5, 1])
-            .rotate(-90, 0)
-            .setPosition([0, 0.05, 0]);
-        const arrowXMesh = createArrow(vec4.fromValues(1, 0, 0, alpha));
-        arrowXMesh
-            .getTransform()
-            .setScaling([1.5, 1, 1])
-            .rotate(0, 90)
-            .setPosition([0.05, 0, 0]);
+        Gizmo.objectSelector = new ObjectSelector();
+        Gizmo.currentGizmo = Gizmo.gizmoTypes[Gizmo.currentGizmoType];
 
-        const meshes = [] as Mesh[];
-        meshes[AXIS_ENUM.X] = arrowXMesh;
-        meshes[AXIS_ENUM.Y] = arrowYMesh;
-        meshes[AXIS_ENUM.Z] = arrowZMesh;
-
-        this.movingModel = new Object(meshes, [0, 0, 0], [1, 1, 1]);
-        this.movingModel.setSingleFace(true);
-        this.subscribe();
-
-        this.initGizmoScaling = this.movingModel.getTransform().getScaling();
+        Gizmo.initGizmoScaling = Gizmo.currentGizmo
+            .getModel()
+            .getTransform()
+            .getScaling();
 
         Engine.onSetScene((scene) => {
             scene
@@ -60,43 +53,82 @@ export class Gizmo {
                         return;
                     }
 
-                    this.changeGizmoScaling(selectedObject);
+                    Gizmo.changeGizmoScaling(selectedObject);
                 });
         });
 
         Engine.getObjectSelector().addOnChange(({ entity }) => {
-            if (!entity) {
-                this.show = false;
+            Gizmo.changeObject(entity?.object ?? null);
+        });
+    }
 
-                return;
-            }
+    public static getCurrentType() {
+        return Gizmo.currentGizmoType;
+    }
 
-            const objectPos = entity.object.getTransform().getPosition();
-            const gizmoTransform = this.movingModel.getTransform();
-            gizmoTransform.setPosition(objectPos);
-            this.changeGizmoScaling(entity.object);
+    public static subscribeType(callback: SubscriberType) {
+        Gizmo.subscribersChangeTypeCb.push(callback);
+    }
 
-            this.show = true;
+    public static changeType(type: GIZMO_TYPE_ENUM) {
+        const object = Engine.getObjectSelector().getSelected().entity?.object;
+
+        Gizmo.currentGizmoType = type;
+        Gizmo.currentGizmo = Gizmo.gizmoTypes[Gizmo.currentGizmoType];
+
+        Gizmo.changeObject(object ?? null);
+
+        Gizmo.subscribersChangeTypeCb.forEach((cb) => {
+            cb(Gizmo.currentGizmoType);
         });
     }
 
     public static getGizmoModel() {
-        return this.movingModel;
+        return Gizmo.currentGizmo.getModel();
+    }
+
+    public static isSelectedGizmo(ray: Ray) {
+        if (!Gizmo.show) return false;
+
+        Gizmo.objectSelector.select(ray, [Gizmo.currentGizmo.getModel()]);
+        const { entity } = Gizmo.objectSelector.getSelected();
+
+        return !!entity;
+    }
+
+    public static isMovingGizmo() {
+        return Gizmo.isMoving;
     }
 
     public static isShow() {
-        return this.show;
+        return Gizmo.show;
     }
 
     public static getObjectSelector() {
-        return this.objectSelector;
+        return Gizmo.objectSelector;
+    }
+
+    private static changeObject(object: Object | null) {
+        if (!object) {
+            Gizmo.show = false;
+
+            return;
+        }
+
+        const objectPos = object.getTransform().getPosition();
+        const gizmoTransform = Gizmo.currentGizmo.getModel().getTransform();
+        gizmoTransform.setPosition(objectPos);
+        Gizmo.changeGizmoScaling(object);
+        Gizmo.currentGizmo.update(object);
+
+        Gizmo.show = true;
     }
 
     private static changeGizmoScaling(object: Object) {
         const camera = Engine.getScene()?.getCamera();
 
         if (!camera) {
-            this.show = false;
+            Gizmo.show = false;
             return;
         }
 
@@ -105,101 +137,105 @@ export class Gizmo {
         const distance =
             vec3.distance(object.getTransform().getPosition(), cameraPos) * 0.1;
         const newScaling = vec3.create();
-        vec3.scale(newScaling, this.initGizmoScaling, distance);
+        vec3.scale(newScaling, Gizmo.initGizmoScaling, distance);
 
-        this.movingModel.getTransform().setScaling(newScaling);
+        Gizmo.currentGizmo.getModel().getTransform().setScaling(newScaling);
     }
 
-    private static subscribe() {
+    public static clear() {
+        const object = Engine.getObjectSelector().getSelected().entity?.object;
+
+        if (object) {
+            Gizmo.currentGizmo.update(object);
+        }
+
+        Gizmo.isMoving = false;
+        Gizmo.isMouseDown = false;
+    }
+
+    public static select(e: MouseEvent) {
         const renderView = Engine.getCanvas().getRenderView();
 
-        renderView.addEventListener("mousedown", (e) => {
-            const isLeftClick = e.button === 0;
-            const scene = Engine.getScene();
-            const objectSelector = Engine.getObjectSelector();
+        const isLeftClick = e.button === 0;
+        const scene = Engine.getScene();
+        const selectedObject = Engine.getObjectSelector().getSelected().entity;
 
-            if (!scene || !isLeftClick) return;
+        if (!scene || !isLeftClick || !selectedObject) return;
 
-            if (!objectSelector.getSelected().entity) {
-                return;
-            }
+        Gizmo.isMouseDown = true;
 
-            this.isMouseDown = true;
+        const ray = Rays.RayCast(
+            e.clientX,
+            e.clientY,
+            renderView,
+            scene.getCamera()
+        );
 
-            const ray = Rays.RayCast(
-                e.clientX,
-                e.clientY,
-                renderView,
-                scene.getCamera()
-            );
+        Gizmo.objectSelector.select(ray, [Gizmo.currentGizmo.getModel()]);
 
-            this.objectSelector.select(ray, [this.movingModel]);
+        const { entity } = Gizmo.objectSelector.getSelected();
 
-            const { entity } = this.objectSelector.getSelected();
+        if (!entity) return;
 
-            if (entity) {
-                const { point } = entity.hit;
+        Gizmo.isMoving = true;
 
-                vec3.sub(
-                    this.offset,
-                    this.movingModel.getTransform().getPosition(),
-                    point
-                );
-            }
-        });
+        const gizmoModel = Gizmo.currentGizmo.getModel();
 
-        renderView.addEventListener("mousemove", (e) => {
-            const scene = Engine.getScene();
-            const sceneObjectSelected =
-                Engine.getObjectSelector().getSelected().entity?.object;
-            const selected = this.objectSelector.getSelected().entity;
+        const selectedAxis = gizmoModel.getMeshes().indexOf(entity.mesh);
 
-            if (
-                !this.isMouseDown ||
-                !scene ||
-                !sceneObjectSelected ||
-                !selected
-            )
-                return;
+        if (selectedAxis < 0) return;
 
-            const selectedAxis = this.movingModel
-                .getMeshes()
-                .indexOf(selected.mesh);
+        const gizmoPos = gizmoModel.getTransform().getPosition();
+        const intersection = axisIntersection(ray, gizmoPos, selectedAxis);
 
-            if (selectedAxis < 0) {
-                return;
-            }
+        if (!intersection) {
+            return;
+        }
 
-            const camera = scene.getCamera();
-            const ray = Rays.RayCast(e.clientX, e.clientY, renderView, camera);
-            const objectPos = selected.object.getTransform().getPosition();
-            const normalAxis = vec3.create();
-            normalAxis[selectedAxis] = 1;
+        vec3.sub(Gizmo.offset, gizmoPos, intersection);
+    }
 
-            const intersection = axisIntersection(ray, objectPos, selectedAxis);
+    public static move(e: MouseEvent) {
+        const renderView = Engine.getCanvas().getRenderView();
 
-            if (intersection === null) return;
+        const scene = Engine.getScene();
+        const sceneObjectSelected =
+            Engine.getObjectSelector().getSelected().entity?.object;
+        const gizmoSelectedObject = Gizmo.objectSelector.getSelected().entity;
 
-            const nextPoint = vec3.create();
-            vec3.add(nextPoint, intersection, this.offset);
+        if (
+            !Gizmo.isMouseDown ||
+            !scene ||
+            !sceneObjectSelected ||
+            !gizmoSelectedObject
+        )
+            return;
 
-            const sceneObjectTransform = sceneObjectSelected.getTransform();
+        const selectedAxis = Gizmo.currentGizmo
+            .getModel()
+            .getMeshes()
+            .indexOf(gizmoSelectedObject.mesh);
 
-            sceneObjectTransform.setPositionByAxis(
-                nextPoint[selectedAxis],
-                selectedAxis
-            );
+        if (selectedAxis < 0) {
+            return;
+        }
 
-            this.movingModel
-                .getTransform()
-                .setPosition(sceneObjectTransform.getPosition());
+        const camera = scene.getCamera();
+        const ray = Rays.RayCast(e.clientX, e.clientY, renderView, camera);
+        const objectPos = gizmoSelectedObject.object
+            .getTransform()
+            .getPosition();
 
-            this.changeGizmoScaling(sceneObjectSelected);
-        });
+        const intersection = axisIntersection(ray, objectPos, selectedAxis);
 
-        document.addEventListener("mouseup", () => {
-            this.objectSelector.clear();
-            this.isMouseDown = false;
-        });
+        if (intersection === null) return;
+
+        const nextPoint = vec3.create();
+
+        vec3.add(nextPoint, intersection, Gizmo.offset);
+
+        Gizmo.currentGizmo.change(sceneObjectSelected, selectedAxis, nextPoint);
+
+        Gizmo.changeGizmoScaling(sceneObjectSelected);
     }
 }

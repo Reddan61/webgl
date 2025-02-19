@@ -7,18 +7,15 @@ export class Camera {
     private arrowSens = 30.0;
     private mouseSens = 0.1;
     private transform: Transform;
-    // private position: vec3;
+    private farPlane = 100000;
     private view: mat4;
     private projection: mat4;
-    // private rotation: Rotation;
     private keys: Record<KeyboardEvent["code"], boolean> = {};
     private isMouseDown = false;
     private lastMouseX = 0;
     private lastMouseY = 0;
 
     constructor(position: vec3) {
-        // this.rotation = new Rotation();
-        // this.position = position;
         this.view = mat4.create();
         this.transform = new Transform();
         this.transform.setPosition(position);
@@ -36,8 +33,12 @@ export class Camera {
             glMatrix.toRadian(45),
             aspect,
             0.1,
-            1000.0
+            this.farPlane
         );
+    }
+
+    public getFarPlane() {
+        return this.farPlane;
     }
 
     public getView() {

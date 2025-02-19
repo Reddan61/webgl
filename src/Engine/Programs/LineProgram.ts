@@ -40,26 +40,28 @@ export class LineProgram extends Program {
         const camera = scene.getCamera();
 
         objects.forEach((object) => {
-            const modelMatrix = object.getTransform().getModelMatrix();
-            const isSelected = selectedObject?.entity?.object === object;
+            object.getMeshes().forEach((mesh) => {
+                const modelMatrix = object.getMeshModelMatrix(mesh);
+                const isSelected = selectedObject?.entity?.object === object;
 
-            const aabb = object.getAABB();
-            const aabbIndices = aabb.getIndices();
+                const aabb = mesh.getAABB();
+                const aabbIndices = aabb.getIndices();
 
-            this.setVariables(
-                aabb.getVertices(),
-                aabbIndices,
-                modelMatrix,
-                isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0],
-                camera
-            );
+                this.setVariables(
+                    aabb.getVertices(),
+                    aabbIndices,
+                    modelMatrix,
+                    isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0],
+                    camera
+                );
 
-            this.webgl.drawElements(
-                this.webgl.LINES,
-                aabbIndices.length,
-                this.webgl.UNSIGNED_SHORT,
-                0
-            );
+                this.webgl.drawElements(
+                    this.webgl.LINES,
+                    aabbIndices.length,
+                    this.webgl.UNSIGNED_SHORT,
+                    0
+                );
+            });
         });
 
         const rays = objectSelector.getRays();

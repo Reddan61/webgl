@@ -3,6 +3,7 @@ import {
     LineProgramIndices,
     LineProgramVertices,
 } from "../Programs/LineProgram";
+import { Engine } from "engine/Engine";
 
 interface Line {
     vertices: LineProgramVertices;
@@ -16,10 +17,10 @@ export class Ray {
     private distance: number;
     private line: Line;
 
-    constructor(start: vec3, direction: vec3, distance = 200) {
+    constructor(start: vec3, direction: vec3) {
         this.direction = direction;
         this.start = start;
-        this.distance = distance;
+        this.distance = Engine.getScene()?.getCamera().getFarPlane() ?? 200;
         this.end = vec3.create();
         vec3.scaleAndAdd(this.end, this.start, this.direction, this.distance);
         this.line = this.createLine();

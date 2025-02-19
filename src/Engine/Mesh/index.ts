@@ -151,24 +151,6 @@ export class Mesh {
             vec3.max(primitiveAABBMax, primitiveAABBMax, max);
         });
 
-        const primitiveAABB = new AABB(primitiveAABBMax, primitiveAABBMin);
-
-        const corners = primitiveAABB.getCorners();
-
-        const resultAABBMin = vec3.fromValues(Infinity, Infinity, Infinity);
-        const resultAABBMax = vec3.fromValues(-Infinity, -Infinity, -Infinity);
-
-        corners.forEach((corner) => {
-            const transformedCorner = vec3.transformMat4(
-                vec3.create(),
-                corner,
-                this.transform.getModelMatrix()
-            );
-
-            vec3.min(resultAABBMin, resultAABBMin, transformedCorner);
-            vec3.max(resultAABBMax, resultAABBMax, transformedCorner);
-        });
-
-        this.aabb = new AABB(resultAABBMax, resultAABBMin);
+        this.aabb = new AABB(primitiveAABBMax, primitiveAABBMin);
     }
 }

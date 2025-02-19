@@ -1,3 +1,4 @@
+import { GizmoButtons } from "engine/EngineInterface/Canvas/GizmoButtons/GizmoButtons";
 import styles from "./Canvas.module.scss";
 
 type NormalizeCallback = (width: number, height: number) => void;
@@ -15,7 +16,10 @@ export class Canvas {
         this.container.classList.add(styles.container);
         this.canvas.classList.add(styles.canvas);
 
+        const buttons = new GizmoButtons();
+
         this.container.append(this.canvas);
+        this.container.append(buttons.getElement());
 
         this.subscribe();
     }

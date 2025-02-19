@@ -33,22 +33,6 @@ export class AABB {
         ];
     }
 
-    // public minMaxAABB(aabb: AABB) {
-    //     const { max, min } = aabb.getMaxMin();
-    //     this.checkMin(min);
-    //     this.checkMax(max);
-    // }
-
-    // public checkMin(min: vec3) {
-    //     vec3.min(this.min, this.min, min);
-    //     // this.createGeometry();
-    // }
-
-    // public checkMax(max: vec3) {
-    //     vec3.max(this.max, this.max, max);
-    //     // this.createGeometry();
-    // }
-
     public getVertices() {
         return this.vertices;
     }

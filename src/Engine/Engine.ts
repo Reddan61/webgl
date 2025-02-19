@@ -95,10 +95,23 @@ export class Engine {
     private static subscribe() {
         const renderView = Engine.canvas.getRenderView();
 
-        renderView.addEventListener("click", (e) => {
+        renderView.addEventListener("mousedown", (e) => {
+            Gizmo.select(e);
+        });
+
+        renderView.addEventListener("mousemove", (e) => {
+            Gizmo.move(e);
+        });
+
+        renderView.addEventListener("mouseup", (e) => {
             const isLeftClick = e.button === 0;
 
             if (isLeftClick && Engine.scene) {
+                if (Gizmo.isMovingGizmo()) {
+                    Gizmo.clear();
+                    return;
+                }
+
                 const ray = Rays.RayCast(
                     e.clientX,
                     e.clientY,
@@ -106,7 +119,12 @@ export class Engine {
                     Engine.scene.getCamera()
                 );
 
-                Engine.objectSelector.select(ray, Engine.scene.getObjects());
+                if (!Gizmo.isSelectedGizmo(ray)) {
+                    Engine.objectSelector.select(
+                        ray,
+                        Engine.scene.getObjects()
+                    );
+                }
             }
         });
     }

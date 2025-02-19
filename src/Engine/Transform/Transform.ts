@@ -40,6 +40,12 @@ export class Transform {
         return this;
     }
 
+    public setScalingByAxis(value: number, axis: AXIS_ENUM) {
+        this.scaling[axis] = value;
+        this.calculateMatrix();
+        return this;
+    }
+
     public setModelMatrix(matrix: mat4) {
         this.replacedModelMatrix = matrix;
 

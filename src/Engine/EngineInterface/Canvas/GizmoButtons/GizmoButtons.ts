@@ -2,12 +2,14 @@ import { Button } from "engine/EngineInterface/Canvas/GizmoButtons/Button/Button
 import { GIZMO_TYPE_ENUM, Gizmo } from "engine/Gizmo/Gizmo";
 import MoveIcon from "resources/svg/move.svg";
 import ScaleIcon from "resources/svg/scale.svg";
+import RotateIcon from "resources/svg/rotate.svg";
 import styles from "./GizmoButtons.module.scss";
 
 export class GizmoButtons {
     private container: HTMLDivElement;
     private translationButton: Button;
     private scaleButton: Button;
+    private rotateButton: Button;
 
     constructor() {
         this.container = document.createElement("div");
@@ -19,6 +21,9 @@ export class GizmoButtons {
         this.scaleButton = new Button(ScaleIcon, () => {
             Gizmo.changeType(GIZMO_TYPE_ENUM.SCALE);
         });
+        this.rotateButton = new Button(RotateIcon, () => {
+            Gizmo.changeType(GIZMO_TYPE_ENUM.ROTATE);
+        });
 
         const gizmoType = Gizmo.getCurrentType();
         this.onChangeType(gizmoType);
@@ -26,6 +31,7 @@ export class GizmoButtons {
 
         this.container.append(this.translationButton.getElement());
         this.container.append(this.scaleButton.getElement());
+        this.container.append(this.rotateButton.getElement());
     }
 
     public getElement() {
@@ -36,8 +42,14 @@ export class GizmoButtons {
         if (type === GIZMO_TYPE_ENUM.TRANSLATION) {
             this.translationButton.select(true);
             this.scaleButton.select(false);
+            this.rotateButton.select(false);
         } else if (type === GIZMO_TYPE_ENUM.SCALE) {
             this.scaleButton.select(true);
+            this.translationButton.select(false);
+            this.rotateButton.select(false);
+        } else if (type === GIZMO_TYPE_ENUM.ROTATE) {
+            this.rotateButton.select(true);
+            this.scaleButton.select(false);
             this.translationButton.select(false);
         }
     };

@@ -69,7 +69,7 @@ const createScene = async () => {
     // const susParsed = await loadObj(susURL);
 
     const wizard = await loadGLTF(wizardURL);
-    wizard.getTransform().rotate(0, -90);
+    wizard.getTransform().getRotation().rotate(0, -90);
     wizard.getTransform().setPosition(vec3.fromValues(20, 0, 0));
     wizard.getTransform().setScaling(vec3.fromValues(10, 10, 10));
     wizard.setFlipYTexture(false);
@@ -115,7 +115,7 @@ const createScene = async () => {
     const elephant = await loadGLTF(elephantURL);
     elephant.getTransform().setPosition([0, -10, -20]);
     elephant.getTransform().setScaling([0.15, 0.15, 0.15]);
-    elephant.getTransform().rotate(0, -90);
+    elephant.getTransform().getRotation().rotate(0, -90);
     elephant.setFlipYTexture(false);
     elephant.setName("elephant");
 

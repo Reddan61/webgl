@@ -9,6 +9,7 @@ import { Uniform4fv } from "./Uniform/Uniform4fv";
 import { Scene } from "../Scene";
 import { Camera } from "../Camera";
 import { Engine } from "../Engine";
+import { Gizmo } from "engine/Gizmo/Gizmo";
 
 export type LineProgramVertices = Float32Array;
 export type LineProgramIndices = Uint16Array;
@@ -62,6 +63,32 @@ export class LineProgram extends Program {
                     0
                 );
             });
+        });
+
+        const gizmoModel = Gizmo.getGizmoModel();
+        const selected = Gizmo.getObjectSelector().getSelected().entity;
+
+        gizmoModel.getMeshes().forEach((mesh) => {
+            const modelMatrix = gizmoModel.getMeshModelMatrix(mesh);
+            const isSelected = selected?.mesh === mesh;
+
+            const aabb = mesh.getAABB();
+            const aabbIndices = aabb.getIndices();
+
+            this.setVariables(
+                aabb.getVertices(),
+                aabbIndices,
+                modelMatrix,
+                isSelected ? [1.0, 0.0, 0.0, 1.0] : [0.0, 1.0, 0.0, 1.0],
+                camera
+            );
+
+            this.webgl.drawElements(
+                this.webgl.LINES,
+                aabbIndices.length,
+                this.webgl.UNSIGNED_SHORT,
+                0
+            );
         });
 
         const rays = objectSelector.getRays();

@@ -24,6 +24,9 @@ export class Transform {
 
     constructor() {
         this.rotation = new Rotation();
+        this.rotation.addOnChange(() => {
+            this.calculateMatrix();
+        });
         this.calculateMatrix();
     }
 
@@ -55,13 +58,6 @@ export class Transform {
 
     public setScaling(scaling: vec3) {
         this.scaling = scaling;
-        this.calculateMatrix();
-
-        return this;
-    }
-
-    public rotate(xAngle: number, yAngle: number) {
-        this.rotation.rotate(xAngle, yAngle);
         this.calculateMatrix();
 
         return this;

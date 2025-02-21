@@ -3,31 +3,31 @@ import { Object } from "engine/Object";
 import { Engine } from "engine/Engine";
 import { ObjectSelector } from "engine/ObjectSelector";
 import { Rays } from "engine/Rays";
-import { axisIntersection } from "engine/Utils/axisIntersection";
 import { Ray } from "engine/Ray";
 import { Scale } from "engine/Gizmo/Scale";
 import { GizmoType } from "engine/Gizmo/GizmoType";
 import { Translation } from "engine/Gizmo/Translation";
+import { Rotate } from "engine/Gizmo/Rotate";
 
 export enum GIZMO_TYPE_ENUM {
     TRANSLATION = "TRANSLATION",
     SCALE = "SCALE",
+    ROTATE = "ROTATE",
 }
 
 type SubscriberType = (type: GIZMO_TYPE_ENUM) => void;
 export class Gizmo {
     private static isMoving = false;
+    private static isMouseDown = false;
     private static show = false;
     private static objectSelector: ObjectSelector;
-    private static isMouseDown = false;
-    private static offset = vec3.create();
-    private static initGizmoScaling = vec3.create();
 
     private static currentGizmo: GizmoType;
     private static currentGizmoType = GIZMO_TYPE_ENUM.TRANSLATION;
     private static gizmoTypes: Record<GIZMO_TYPE_ENUM, GizmoType> = {
         [GIZMO_TYPE_ENUM.TRANSLATION]: new Translation(),
         [GIZMO_TYPE_ENUM.SCALE]: new Scale(),
+        [GIZMO_TYPE_ENUM.ROTATE]: new Rotate(),
     };
 
     private static subscribersChangeTypeCb: SubscriberType[] = [];
@@ -35,11 +35,6 @@ export class Gizmo {
     public static init() {
         Gizmo.objectSelector = new ObjectSelector();
         Gizmo.currentGizmo = Gizmo.gizmoTypes[Gizmo.currentGizmoType];
-
-        Gizmo.initGizmoScaling = Gizmo.currentGizmo
-            .getModel()
-            .getTransform()
-            .getScaling();
 
         Engine.onSetScene((scene) => {
             scene
@@ -137,7 +132,9 @@ export class Gizmo {
         const distance =
             vec3.distance(object.getTransform().getPosition(), cameraPos) * 0.1;
         const newScaling = vec3.create();
-        vec3.scale(newScaling, Gizmo.initGizmoScaling, distance);
+
+        const initScale = this.currentGizmo.getInitScale();
+        vec3.scale(newScaling, initScale, distance);
 
         Gizmo.currentGizmo.getModel().getTransform().setScaling(newScaling);
     }
@@ -185,14 +182,7 @@ export class Gizmo {
 
         if (selectedAxis < 0) return;
 
-        const gizmoPos = gizmoModel.getTransform().getPosition();
-        const intersection = axisIntersection(ray, gizmoPos, selectedAxis);
-
-        if (!intersection) {
-            return;
-        }
-
-        vec3.sub(Gizmo.offset, gizmoPos, intersection);
+        this.currentGizmo.select(selectedObject.object, ray, selectedAxis);
     }
 
     public static move(e: MouseEvent) {
@@ -222,19 +212,8 @@ export class Gizmo {
 
         const camera = scene.getCamera();
         const ray = Rays.RayCast(e.clientX, e.clientY, renderView, camera);
-        const objectPos = gizmoSelectedObject.object
-            .getTransform()
-            .getPosition();
 
-        const intersection = axisIntersection(ray, objectPos, selectedAxis);
-
-        if (intersection === null) return;
-
-        const nextPoint = vec3.create();
-
-        vec3.add(nextPoint, intersection, Gizmo.offset);
-
-        Gizmo.currentGizmo.change(sceneObjectSelected, selectedAxis, nextPoint);
+        this.currentGizmo.move(sceneObjectSelected, ray, selectedAxis);
 
         Gizmo.changeGizmoScaling(sceneObjectSelected);
     }

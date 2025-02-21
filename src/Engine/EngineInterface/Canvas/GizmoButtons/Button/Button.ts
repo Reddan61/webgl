@@ -12,6 +12,8 @@ export class Button {
 
         const iconImg = document.createElement("img");
         iconImg.setAttribute("src", iconUrl);
+        iconImg.setAttribute("width", "22px");
+        iconImg.setAttribute("height", "22px");
 
         this.button.append(iconImg);
         this.button.onclick = onClick;

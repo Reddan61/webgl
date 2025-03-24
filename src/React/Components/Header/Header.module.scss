@@ -1,0 +1,35 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0.75em 1em;
+    background-color: rgb(48, 48, 48);
+}
+
+.buttons {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+}
+
+.button {
+    width: 36px;
+    height: 32px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 8px 12px;
+    border-radius: 4px;
+
+    background-color: rgb(61, 61, 61);
+
+    transition: background-color ease 0.3s;
+
+    &:hover {
+        background-color: rgb(51, 77, 128);
+    }
+}

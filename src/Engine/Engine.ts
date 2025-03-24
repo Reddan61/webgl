@@ -1,17 +1,18 @@
 import { unsubArr } from "engine/Utils/Utils";
 import { Gizmo } from "engine/Gizmo/Gizmo";
-import { Render } from "engine/Render";
 import { Scene } from "engine/Scene";
 import { ObjectSelector } from "engine/ObjectSelector";
 import { Rays } from "engine/Rays";
 import { Controls } from "engine/Controls/Controls";
+import { Render } from "engine/Render/Render";
+import { DefaultRender } from "engine/Render/DefaultRender/DefaultRender";
 
 type SceneSubscriberCb = (scene: Scene | null) => void;
 type OnInitSubscriberCb = () => void;
 export class Engine {
     private static canvas: HTMLCanvasElement;
-    private static render: Render;
-    // private static engineInterface: EngineInterface;
+    private static currentRender: Render;
+    private static defaultRender: DefaultRender;
     private static scene: Scene | null;
     private static objectSelector: ObjectSelector;
     private static controls: Controls;
@@ -34,7 +35,9 @@ export class Engine {
 
         Engine.controls = new Controls(Engine.canvas);
 
-        Engine.render = new Render(Engine.canvas);
+        Engine.defaultRender = new DefaultRender(Engine.canvas);
+        Engine.currentRender = Engine.defaultRender;
+
         Gizmo.init();
 
         Engine.subscribe();
@@ -54,9 +57,13 @@ export class Engine {
         return Engine.scene;
     }
 
+    public static setRender(render: Render | null) {
+        Engine.currentRender = render ?? Engine.defaultRender;
+    }
+
     public static setScene(scene: Scene | null) {
         Engine.scene = scene;
-        Engine.scene?._setWebGl(Engine.render.getContext());
+        Engine.scene?._setWebGl(Engine.currentRender.getContext());
 
         const { height, width } = Engine.canvas;
         Engine.scene?.getCamera().createProjection(width / height);
@@ -95,7 +102,7 @@ export class Engine {
         Engine.update(delta);
 
         if (Engine.scene) {
-            Engine.render.draw(Engine.scene);
+            Engine.currentRender.draw(Engine.scene);
         }
 
         requestAnimationFrame(Engine.run);

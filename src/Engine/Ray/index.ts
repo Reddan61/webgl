@@ -2,7 +2,7 @@ import { vec3 } from "gl-matrix";
 import {
     LineProgramIndices,
     LineProgramVertices,
-} from "../Programs/LineProgram";
+} from "../Render/DefaultRender/DefaultPrograms/LineProgram/LineProgram";
 import { Engine } from "engine/Engine";
 
 interface Line {

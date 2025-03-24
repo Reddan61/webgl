@@ -74,7 +74,5 @@ export class Translation extends GizmoType {
         const transform = object.getTransform();
 
         transform.setPositionByAxis(nextPoint[selectedAxis], selectedAxis);
-
-        this.model.getTransform().setPosition(transform.getPosition());
     }
 }

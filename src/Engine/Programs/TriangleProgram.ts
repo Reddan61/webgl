@@ -12,13 +12,13 @@ import { Uniform3fv } from "./Uniform/Uniform3fv";
 import { Uniform1f } from "./Uniform/Uniform1f";
 import { ImageTexture } from "./Texture/ImageTexture";
 import { TextureUniform } from "./Uniform/TextureUniform";
-import { Scene } from "../Scene";
 import { DataTexture } from "./Texture/DataTexture";
 import { ShadowAtlasProgram } from "./ShadowAtlasProgram";
 import { ShadowMapProgram } from "./ShadowMapProgram";
-import { Material } from "../Material";
 import { MeshPrimitive } from "../MeshPrimitive";
-import { Object } from "engine/Object";
+import { EngineObject } from "engine/EngineObject";
+import { Scene } from "engine/Scene";
+import { Material } from "engine/Material";
 
 export class TriangleProgram extends Program {
     private indicesBuffer: ElementBuffer;
@@ -103,7 +103,7 @@ export class TriangleProgram extends Program {
 
     private objectDraw(
         scene: Scene,
-        object: Object,
+        object: EngineObject,
         shadowAtlasProgram: ShadowAtlasProgram,
         shadowMapProgram: ShadowMapProgram
     ) {

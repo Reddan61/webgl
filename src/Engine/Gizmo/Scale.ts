@@ -1,11 +1,11 @@
-import { GizmoType } from "engine/Gizmo/GizmoType";
-import { Mesh } from "engine/Mesh";
-import { Object } from "engine/Object";
-import { Ray } from "engine/Ray";
-import { createScalingArrow } from "engine/Utils/CreateObjects/createScalingArrow";
-import { getNearPointOnRay } from "engine/Utils/MathUtilsFunc";
-import { AXIS_ENUM } from "engine/Utils/types";
 import { vec3, vec4 } from "gl-matrix";
+import { Ray } from "engine/Ray";
+import { Mesh } from "engine/Mesh";
+import { AXIS_ENUM } from "engine/Utils/types";
+import { GizmoType } from "engine/Gizmo/GizmoType";
+import { EngineObject } from "engine/EngineObject";
+import { getNearPointOnRay } from "engine/Utils/MathUtilsFunc";
+import { createScalingArrow } from "engine/Utils/CreateObjects/createScalingArrow";
 
 export class Scale extends GizmoType {
     private offset = null as vec3 | null;
@@ -34,13 +34,13 @@ export class Scale extends GizmoType {
         meshes[AXIS_ENUM.Y] = arrowYMesh;
         meshes[AXIS_ENUM.Z] = arrowZMesh;
 
-        const model = new Object(meshes, [0, 0, 0], [1, 1, 1]);
+        const model = new EngineObject(meshes, [0, 0, 0], [1, 1, 1]);
         model.setSingleFace(true);
 
         super(model);
     }
 
-    public select(_: Object, ray: Ray, selectedAxis: AXIS_ENUM) {
+    public select(_: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {
         const objectPos = this.model.getTransform().getPosition();
 
         const intersection = getNearPointOnRay(ray, objectPos, selectedAxis);
@@ -52,7 +52,7 @@ export class Scale extends GizmoType {
         this.offset = vec3.sub(vec3.create(), objectPos, intersection);
     }
 
-    public move(object: Object, ray: Ray, selectedAxis: AXIS_ENUM) {
+    public move(object: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {
         if (!this.offset) return;
 
         const objectPos = this.model.getTransform().getPosition();
@@ -68,7 +68,11 @@ export class Scale extends GizmoType {
         this.change(object, selectedAxis, nextPoint);
     }
 
-    private change(object: Object, selectedAxis: AXIS_ENUM, nextPoint: vec3) {
+    private change(
+        object: EngineObject,
+        selectedAxis: AXIS_ENUM,
+        nextPoint: vec3
+    ) {
         if (!this.initScale) return;
 
         const transform = object.getTransform();
@@ -83,7 +87,7 @@ export class Scale extends GizmoType {
         transform.setScalingByAxis(nextScaling, selectedAxis);
     }
 
-    public update(object: Object) {
+    public update(object: EngineObject) {
         const objectTransform = object.getTransform();
 
         this.initScale = vec3.copy(vec3.create(), objectTransform.getScaling());

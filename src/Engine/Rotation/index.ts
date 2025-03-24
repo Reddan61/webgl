@@ -1,8 +1,9 @@
+import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import { CustomMath } from "engine/Utils/Math";
 import { AXIS_ENUM } from "engine/Utils/types";
-import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
+import { unsubArr } from "engine/Utils/Utils";
 
-type OnChangeCbType = () => void;
+type OnChangeCbType = (rotation: Rotation) => void;
 
 export class Rotation {
     private up = vec3.create();
@@ -40,19 +41,24 @@ export class Rotation {
 
     public addOnChange(cb: OnChangeCbType) {
         this.onChangeSubscribersCb.push(cb);
+
+        return unsubArr(this.onChangeSubscribersCb, (el) => el === cb);
     }
 
     private publish() {
         this.onChangeSubscribersCb.forEach((cb) => {
-            cb();
+            cb(this);
         });
     }
 
     public setRotation(rotation: mat4) {
         this.rotation = rotation;
-        this.updateEulerAngles();
 
         this.publish();
+    }
+
+    public getEulerAngles() {
+        return vec3.fromValues(this.xAngle, this.yAngle, this.zAngle);
     }
 
     public getUp() {
@@ -67,18 +73,6 @@ export class Rotation {
         return this.right;
     }
 
-    public getXAngle() {
-        return this.xAngle;
-    }
-
-    public getYAngle() {
-        return this.yAngle;
-    }
-
-    public getZAngle() {
-        return this.zAngle;
-    }
-
     public getRotation() {
         return this.rotation;
     }
@@ -89,21 +83,27 @@ export class Rotation {
         rollAngle?: number | null
     ) {
         if (pitchAngle !== null && pitchAngle !== undefined) {
-            this.xRotate(pitchAngle);
+            this.xAngle = pitchAngle;
         }
 
         if (yawAngle !== null && yawAngle !== undefined) {
-            this.yRotate(yawAngle);
+            this.yAngle = yawAngle;
         }
 
         if (rollAngle !== null && rollAngle !== undefined) {
-            this.zRotate(rollAngle);
+            this.zAngle = rollAngle;
         }
 
-        this.calculateLocalRotation();
+        const q = quat.create();
+        quat.fromEuler(q, this.xAngle, this.yAngle, this.zAngle);
+
+        mat4.fromQuat(this.rotation, q);
+
+        this.calculateVectors();
+        this.publish();
     }
 
-    public rotateAroundAxis(axis: AXIS_ENUM, angle: number) {
+    public rotateByGlobalAxis(axis: AXIS_ENUM, angle: number) {
         const dirVector = vec3.create();
         dirVector[axis] = 1;
 
@@ -142,25 +142,8 @@ export class Rotation {
         this.zAngle = CustomMath.radToDeg(zAngleRad);
     }
 
-    private xRotate(angle: number) {
-        this.xAngle = angle;
-    }
-
-    private yRotate(angle: number) {
-        this.yAngle = angle;
-    }
-
-    private zRotate(angle: number) {
-        this.zAngle = angle;
-    }
-
-    private calculateLocalRotation() {
-        const q = quat.create();
-        quat.fromEuler(q, this.xAngle, this.yAngle, this.zAngle);
-        mat4.fromQuat(this.rotation, q);
-
-        this.calculateVectors();
-        this.publish();
+    public getEulerAngleByAxis(axis: AXIS_ENUM) {
+        return this.getEulerAngles()[axis];
     }
 
     private calculateVectors() {

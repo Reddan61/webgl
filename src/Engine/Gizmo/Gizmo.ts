@@ -1,5 +1,4 @@
 import { vec3 } from "gl-matrix";
-import { Object } from "engine/Object";
 import { Engine } from "engine/Engine";
 import { ObjectSelector } from "engine/ObjectSelector";
 import { Rays } from "engine/Rays";
@@ -8,6 +7,8 @@ import { Scale } from "engine/Gizmo/Scale";
 import { GizmoType } from "engine/Gizmo/GizmoType";
 import { Translation } from "engine/Gizmo/Translation";
 import { Rotate } from "engine/Gizmo/Rotate";
+import { EngineObject } from "engine/EngineObject";
+import { unsubArr } from "engine/Utils/Utils";
 
 export enum GIZMO_TYPE_ENUM {
     TRANSLATION = "TRANSLATION",
@@ -63,6 +64,11 @@ export class Gizmo {
 
     public static subscribeType(callback: SubscriberType) {
         Gizmo.subscribersChangeTypeCb.push(callback);
+
+        return unsubArr(
+            Gizmo.subscribersChangeTypeCb,
+            (cur) => cur === callback
+        );
     }
 
     public static changeType(type: GIZMO_TYPE_ENUM) {
@@ -103,7 +109,7 @@ export class Gizmo {
         return Gizmo.objectSelector;
     }
 
-    private static changeObject(object: Object | null) {
+    private static changeObject(object: EngineObject | null) {
         if (!object) {
             Gizmo.show = false;
 
@@ -119,7 +125,7 @@ export class Gizmo {
         Gizmo.show = true;
     }
 
-    private static changeGizmoScaling(object: Object) {
+    private static changeGizmoScaling(object: EngineObject) {
         const camera = Engine.getScene()?.getCamera();
 
         if (!camera) {
@@ -151,7 +157,7 @@ export class Gizmo {
     }
 
     public static select(e: MouseEvent) {
-        const renderView = Engine.getCanvas().getRenderView();
+        const canvas = Engine.getCanvas();
 
         const isLeftClick = e.button === 0;
         const scene = Engine.getScene();
@@ -164,7 +170,7 @@ export class Gizmo {
         const ray = Rays.RayCast(
             e.clientX,
             e.clientY,
-            renderView,
+            canvas,
             scene.getCamera()
         );
 
@@ -186,7 +192,7 @@ export class Gizmo {
     }
 
     public static move(e: MouseEvent) {
-        const renderView = Engine.getCanvas().getRenderView();
+        const renderView = Engine.getCanvas();
 
         const scene = Engine.getScene();
         const sceneObjectSelected =

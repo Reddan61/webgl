@@ -1,4 +1,4 @@
-import { loadImage } from "../Utils";
+import { Material } from "engine/Material";
 import {
     ACCESSOR_TYPE,
     ANIMATION_INTERPOLATION,
@@ -7,17 +7,17 @@ import {
     GLTFAnimationChannel,
     GLTFAnimationSampler,
 } from "./types";
-import { Bone } from "../../Bones/Bones";
+import { Mesh } from "engine/Mesh";
+import { EngineObject } from "engine/EngineObject";
+import { Bone } from "engine/Bones/Bones";
+import { Skeleton } from "engine/Skeleton";
+import { loadImage } from "engine/Utils/Utils";
+import { MeshPrimitive } from "engine/MeshPrimitive";
 import {
     AnimationChannel,
     AnimationSampler,
     BoneAnimation,
-} from "../../Animation/BoneAnimation";
-import { MeshPrimitive } from "../../MeshPrimitive";
-import { Material } from "../../Material";
-import { Mesh } from "../../Mesh";
-import { Skeleton } from "../../Skeleton";
-import { Object } from "../../Object";
+} from "engine/Animation/BoneAnimation";
 
 const TYPED_ARRAYS = {
     [COMPONENT_TYPE.BYTE]: Int8Array,
@@ -363,7 +363,7 @@ const parseNodes = (gltf: GLTF, meshes: Mesh[]) => {
     };
 };
 
-export const parseGLTF = async (gltf: GLTF): Promise<Object> => {
+export const parseGLTF = async (gltf: GLTF): Promise<EngineObject> => {
     const { buffers, images } = gltf;
 
     const bufferPromises: Promise<ArrayBuffer>[] = [];
@@ -396,7 +396,12 @@ export const parseGLTF = async (gltf: GLTF): Promise<Object> => {
     parseSkins(gltf, bones, bufferData);
     const bonesAnimations = parseAnimations(gltf, bufferData, bones) ?? [];
 
-    const object = new Object(meshes, [0, 0, 0], [1, 1, 1], bonesAnimations);
+    const object = new EngineObject(
+        meshes,
+        [0, 0, 0],
+        [1, 1, 1],
+        bonesAnimations
+    );
 
     return object;
 };

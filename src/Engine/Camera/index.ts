@@ -1,6 +1,8 @@
 import { glMatrix, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "../Rotation";
 import { Transform } from "engine/Transform/Transform";
+import { AXIS_ENUM } from "engine/Utils/types";
+import { Engine } from "engine/Engine";
 
 export class Camera {
     private speed = 10.0;
@@ -10,7 +12,7 @@ export class Camera {
     private farPlane = 100000;
     private view: mat4;
     private projection: mat4;
-    private keys: Record<KeyboardEvent["code"], boolean> = {};
+    // private keys: Record<KeyboardEvent["code"], boolean> = {};
     private isMouseDown = false;
     private lastMouseX = 0;
     private lastMouseY = 0;
@@ -69,13 +71,14 @@ export class Camera {
 
     private subscribeEvents() {
         window.oncontextmenu = () => false;
-        document.addEventListener("keydown", (e) => {
-            this.keys[e.code] = true;
-        });
 
-        document.addEventListener("keyup", (e) => {
-            this.keys[e.code] = false;
-        });
+        // document.addEventListener("keydown", (e) => {
+        //     this.keys[e.code] = true;
+        // });
+
+        // document.addEventListener("keyup", (e) => {
+        //     this.keys[e.code] = false;
+        // });
 
         document.addEventListener("mousedown", (e) => {
             const isRightClick = e.button === 2;
@@ -100,8 +103,8 @@ export class Camera {
             const rotation = this.transform.getRotation();
 
             rotation.rotate(
-                rotation.getXAngle() + deltaY,
-                rotation.getYAngle() + deltaX
+                rotation.getEulerAngleByAxis(AXIS_ENUM.X) + deltaY,
+                rotation.getEulerAngleByAxis(AXIS_ENUM.Y) + deltaX
             );
             this.calculateView();
 
@@ -117,7 +120,9 @@ export class Camera {
         const transform = this.transform;
         const rotation = transform.getRotation();
 
-        if (this.keys["KeyA"]) {
+        const controls = Engine.getControls();
+
+        if (controls.getKey("KeyA")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getRight(), newSpeed);
 
@@ -128,7 +133,7 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["KeyD"]) {
+        if (controls.getKey("KeyD")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getRight(), newSpeed);
 
@@ -139,7 +144,7 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["KeyW"]) {
+        if (controls.getKey("KeyW")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getFront(), newSpeed);
 
@@ -150,7 +155,7 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["KeyS"]) {
+        if (controls.getKey("KeyS")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getFront(), newSpeed);
 
@@ -161,7 +166,7 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["Space"]) {
+        if (controls.getKey("Space")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getUp(), newSpeed);
 
@@ -172,7 +177,7 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["ShiftLeft"]) {
+        if (controls.getKey("ShiftLeft")) {
             const temp = vec3.create();
             vec3.scale(temp, rotation.getUp(), newSpeed);
 
@@ -183,26 +188,38 @@ export class Camera {
             isChanged = true;
         }
 
-        if (this.keys["ArrowLeft"]) {
-            rotation.rotate(null, rotation.getYAngle() + newSens);
+        if (controls.getKey("ArrowLeft")) {
+            rotation.rotate(
+                null,
+                rotation.getEulerAngleByAxis(AXIS_ENUM.Y) + newSens
+            );
 
             isChanged = true;
         }
 
-        if (this.keys["ArrowRight"]) {
-            rotation.rotate(null, rotation.getYAngle() - newSens);
+        if (controls.getKey("ArrowRight")) {
+            rotation.rotate(
+                null,
+                rotation.getEulerAngleByAxis(AXIS_ENUM.Y) - newSens
+            );
 
             isChanged = true;
         }
 
-        if (this.keys["ArrowUp"]) {
-            rotation.rotate(rotation.getXAngle() + newSens, null);
+        if (controls.getKey("ArrowUp")) {
+            rotation.rotate(
+                rotation.getEulerAngleByAxis(AXIS_ENUM.X) + newSens,
+                null
+            );
 
             isChanged = true;
         }
 
-        if (this.keys["ArrowDown"]) {
-            rotation.rotate(rotation.getXAngle() - newSens, null);
+        if (controls.getKey("ArrowDown")) {
+            rotation.rotate(
+                rotation.getEulerAngleByAxis(AXIS_ENUM.X) - newSens,
+                null
+            );
 
             isChanged = true;
         }

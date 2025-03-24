@@ -1,6 +1,7 @@
+import { mat3, mat4, vec3 } from "gl-matrix";
 import { Rotation } from "engine/Rotation";
 import { AXIS_ENUM } from "engine/Utils/types";
-import { mat3, mat4, vec3 } from "gl-matrix";
+import { unsubArr } from "engine/Utils/Utils";
 
 type OnTransformSubscriberCb = (transform: Transform) => void;
 
@@ -85,6 +86,8 @@ export class Transform {
 
     public subscribe(cb: OnTransformSubscriberCb) {
         this.onTransformSubscribers.push(cb);
+
+        return unsubArr(this.onTransformSubscribers, (cur) => cur === cb);
     }
 
     private calculateMatrix() {

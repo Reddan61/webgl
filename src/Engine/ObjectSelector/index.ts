@@ -1,17 +1,18 @@
 import { vec3, vec4 } from "gl-matrix";
-import { Object } from "../Object";
-import { Ray } from "../Ray";
-import { AABB } from "../AABB";
+import { Ray } from "engine/Ray";
 import { Mesh } from "engine/Mesh";
+import { AABB } from "engine/AABB";
+import { EngineObject } from "engine/EngineObject";
+import { unsubArr } from "engine/Utils/Utils";
 
 interface SelectedObject {
     entity: {
-        object: Object;
+        object: EngineObject;
         mesh: Mesh;
         hit: Hit;
     } | null;
     lastSelected: {
-        object: Object;
+        object: EngineObject;
         mesh: Mesh;
     } | null;
 }
@@ -40,6 +41,8 @@ export class ObjectSelector {
 
     public addOnChange(func: OnChange) {
         this.onChange.push(func);
+
+        return unsubArr(this.onChange, (el) => el === func);
     }
 
     private publish() {
@@ -60,18 +63,35 @@ export class ObjectSelector {
         this.publish();
     }
 
-    public select(ray: Ray, objects: Object[]) {
+    public select(ray: Ray, objects: EngineObject[]) {
         this.rays[0] = ray;
 
         this.selected = this.objectHit(ray, objects);
         this.publish();
     }
 
-    private objectHit(ray: Ray, objects: Object[]): SelectedObject {
+    public setSelect(object: EngineObject) {
+        this.selected = {
+            entity: {
+                object,
+                mesh: object.getMeshes()[0],
+                hit: {
+                    far: 0,
+                    near: 0,
+                    point: vec3.create(),
+                },
+            },
+            lastSelected: this.selected.entity ?? null,
+        };
+
+        this.publish();
+    }
+
+    private objectHit(ray: Ray, objects: EngineObject[]): SelectedObject {
         const nearest = {
             distToHit: Infinity,
             entity: null as {
-                object: Object;
+                object: EngineObject;
                 mesh: Mesh;
                 hit: Hit;
             } | null,

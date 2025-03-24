@@ -8,14 +8,25 @@ export class Controls {
         this.canvas = canvas;
         this.canvas.focus();
 
-        this.subscribe();
+        this._subscribe();
     }
 
     public getKey(key: KeyboardEvent["code"]) {
         return this.keys[key] ?? false;
     }
 
-    private subscribe() {
+    public subscribe<K extends keyof DocumentEventMap>(
+        event: K,
+        cb: (e: DocumentEventMap[K]) => void
+    ) {
+        this.canvas.addEventListener(event, cb);
+
+        return () => {
+            this.canvas.removeEventListener(event, cb);
+        };
+    }
+
+    private _subscribe() {
         this.canvas.addEventListener("mousedown", () => {
             if (this.canSaveKeys) return;
 

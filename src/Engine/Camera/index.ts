@@ -24,7 +24,9 @@ export class Camera {
 
         this.calculateView();
 
-        this.subscribeEvents();
+        Engine.onInitSubcribe(() => {
+            this.subscribeEvents();
+        });
     }
 
     public createProjection(aspect: number) {
@@ -72,15 +74,9 @@ export class Camera {
     private subscribeEvents() {
         window.oncontextmenu = () => false;
 
-        // document.addEventListener("keydown", (e) => {
-        //     this.keys[e.code] = true;
-        // });
+        const controls = Engine.getControls();
 
-        // document.addEventListener("keyup", (e) => {
-        //     this.keys[e.code] = false;
-        // });
-
-        document.addEventListener("mousedown", (e) => {
+        controls.subscribe("mousedown", (e) => {
             const isRightClick = e.button === 2;
 
             if (isRightClick) {
@@ -90,11 +86,12 @@ export class Camera {
                 this.lastMouseY = e.clientY;
             }
         });
-        document.addEventListener("mouseup", (e) => {
+
+        controls.subscribe("mouseup", () => {
             this.isMouseDown = false;
         });
 
-        document.addEventListener("mousemove", (e) => {
+        controls.subscribe("mousemove", (e) => {
             if (!this.isMouseDown) return;
 
             const deltaX = (e.clientX - this.lastMouseX) * this.mouseSens;

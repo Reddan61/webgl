@@ -1,13 +1,13 @@
-import { Object } from "engine/Object";
+import { EngineObject } from "engine/EngineObject";
 import { Ray } from "engine/Ray";
 import { AXIS_ENUM } from "engine/Utils/types";
 import { vec3 } from "gl-matrix";
 
 export abstract class GizmoType {
     private scale = vec3.fromValues(1, 1, 1);
-    protected model: Object;
+    protected model: EngineObject;
 
-    constructor(model: Object) {
+    constructor(model: EngineObject) {
         this.model = model;
     }
 
@@ -15,10 +15,10 @@ export abstract class GizmoType {
         return this.model;
     }
 
-    public move(object: Object, ray: Ray, selectedAxis: AXIS_ENUM) {}
-    public select(object: Object, ray: Ray, selectedAxis: AXIS_ENUM) {}
+    public move(object: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {}
+    public select(object: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {}
 
-    public update(object: Object) {}
+    public update(object: EngineObject) {}
 
     public getInitScale() {
         return this.scale;

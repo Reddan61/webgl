@@ -30,3 +30,13 @@ export const loadGLTF = (url: string): ReturnType<typeof parseGLTF> => {
             });
     });
 };
+
+export const unsubArr = <T>(arr: T[], boolFunc: (cur: T) => boolean) => {
+    return () => {
+        const index = arr.findIndex((el) => boolFunc(el));
+
+        if (index < 0) return;
+
+        arr.splice(index, 1);
+    };
+};

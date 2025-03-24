@@ -1,18 +1,20 @@
-import { Canvas } from "./EngineInterface/Canvas/Canvas";
-import { EngineInterface } from "./EngineInterface/EngineInterface";
-import { ObjectSelector } from "./ObjectSelector";
-import { Rays } from "./Rays";
-import { Render } from "./Render";
-import { Scene } from "./Scene";
+import { unsubArr } from "engine/Utils/Utils";
 import { Gizmo } from "engine/Gizmo/Gizmo";
+import { Render } from "engine/Render";
+import { Scene } from "engine/Scene";
+import { ObjectSelector } from "engine/ObjectSelector";
+import { Rays } from "engine/Rays";
+import { Controls } from "engine/Controls/Controls";
 
 type SceneSubscriberCb = (scene: Scene | null) => void;
+type OnInitSubscriberCb = () => void;
 export class Engine {
-    private static canvas: Canvas;
+    private static canvas: HTMLCanvasElement;
     private static render: Render;
-    private static engineInterface: EngineInterface;
+    // private static engineInterface: EngineInterface;
     private static scene: Scene | null;
     private static objectSelector: ObjectSelector;
+    private static controls: Controls;
 
     private static currentfps = 0;
     private static fpsToDraw = 0;
@@ -20,27 +22,32 @@ export class Engine {
     private static lastTime = 0;
 
     private static onSetSceneSubscribers: SceneSubscriberCb[] = [];
+    private static onInitSubscribers: OnInitSubscriberCb[] = [];
 
-    public static async Init() {
+    public static async Init(canvas: HTMLCanvasElement) {
         Engine.objectSelector = new ObjectSelector();
 
-        Engine.engineInterface = new EngineInterface(document.body);
+        Engine.canvas = canvas;
+        canvas.setAttribute("tabindex", "0");
 
-        Engine.canvas = Engine.engineInterface.getRenderWindow();
+        Engine.normalizeCanvas();
 
-        Engine.canvas.onNormalize((width, height) => {
-            Engine.scene?.getCamera().createProjection(width / height);
-        });
+        Engine.controls = new Controls(Engine.canvas);
 
-        Engine.render = new Render(Engine.canvas.getRenderView());
+        Engine.render = new Render(Engine.canvas);
         Gizmo.init();
 
         Engine.subscribe();
+
+        Engine.publishInitSubs();
     }
 
     public static update(delta: number) {
         Engine.scene?.update(delta);
-        Engine.engineInterface.update(Engine.fpsToDraw);
+    }
+
+    public static getControls() {
+        return Engine.controls;
     }
 
     public static getScene() {
@@ -51,7 +58,7 @@ export class Engine {
         Engine.scene = scene;
         Engine.scene?._setWebGl(Engine.render.getContext());
 
-        const { height, width } = Engine.canvas.getSize();
+        const { height, width } = Engine.canvas;
         Engine.scene?.getCamera().createProjection(width / height);
 
         Engine.onSetSceneSubscribers.forEach((cb) => {
@@ -61,6 +68,16 @@ export class Engine {
 
     public static onSetScene(callback: SceneSubscriberCb) {
         Engine.onSetSceneSubscribers.push(callback);
+
+        return () => {
+            const index = Engine.onSetSceneSubscribers.findIndex(
+                (el) => el === callback
+            );
+
+            if (index < 0) return;
+
+            Engine.onSetSceneSubscribers.splice(index, 1);
+        };
     }
 
     public static run = () => {
@@ -92,18 +109,41 @@ export class Engine {
         return Engine.canvas;
     }
 
-    private static subscribe() {
-        const renderView = Engine.canvas.getRenderView();
+    public static onInitSubcribe(cb: OnInitSubscriberCb) {
+        Engine.onInitSubscribers.push(cb);
 
-        renderView.addEventListener("mousedown", (e) => {
+        return unsubArr(Engine.onInitSubscribers, (el) => el === cb);
+    }
+
+    private static publishInitSubs() {
+        Engine.onInitSubscribers.forEach((cb) => cb());
+    }
+
+    private static normalizeCanvas() {
+        Engine.canvas.width = Engine.canvas.clientWidth;
+        Engine.canvas.height = Engine.canvas.clientHeight;
+
+        Engine.scene
+            ?.getCamera()
+            .createProjection(Engine.canvas.width / Engine.canvas.height);
+    }
+
+    private static subscribe() {
+        const canvas = Engine.canvas;
+
+        window.addEventListener("resize", () => {
+            Engine.normalizeCanvas();
+        });
+
+        canvas.addEventListener("mousedown", (e) => {
             Gizmo.select(e);
         });
 
-        renderView.addEventListener("mousemove", (e) => {
+        canvas.addEventListener("mousemove", (e) => {
             Gizmo.move(e);
         });
 
-        renderView.addEventListener("mouseup", (e) => {
+        canvas.addEventListener("mouseup", (e) => {
             const isLeftClick = e.button === 0;
 
             if (isLeftClick && Engine.scene) {
@@ -115,7 +155,7 @@ export class Engine {
                 const ray = Rays.RayCast(
                     e.clientX,
                     e.clientY,
-                    Engine.canvas.getRenderView(),
+                    Engine.canvas,
                     Engine.scene.getCamera()
                 );
 

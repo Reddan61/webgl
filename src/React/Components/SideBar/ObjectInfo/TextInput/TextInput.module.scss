@@ -1,0 +1,12 @@
+.input {
+    width: 100%;
+    font-size: 1em;
+    padding: 0.25em 0.5em;
+    color: white;
+    border: 1px solid rgb(61, 61, 61);
+    background-color: rgb(29, 29, 29);
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

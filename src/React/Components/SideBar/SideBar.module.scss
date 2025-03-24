@@ -1,0 +1,10 @@
+.container {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 25em;
+    max-width: 25em;
+
+    min-height: 100vh;
+    max-height: 100vh;
+}

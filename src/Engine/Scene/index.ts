@@ -1,13 +1,13 @@
 import { vec4 } from "gl-matrix";
-import { Camera } from "../Camera";
-import { AmbientLight } from "../Light/AmbientLight";
-import { DirectionalLight } from "../Light/DirectionalLight";
-import { PointLight } from "../Light/PointLight";
-import { Object } from "../Object";
-import { DataTexture } from "../Programs/Texture/DataTexture";
+import { Camera } from "engine/Camera";
+import { EngineObject } from "engine/EngineObject";
+import { PointLight } from "engine/Light/PointLight";
+import { AmbientLight } from "engine/Light/AmbientLight";
+import { DirectionalLight } from "engine/Light/DirectionalLight";
+import { DataTexture } from "engine/Programs/Texture/DataTexture";
 
 export class Scene {
-    private objects: Object[] = [];
+    private objects: EngineObject[] = [];
     private camera: Camera;
     private directionalLight: DirectionalLight;
     private pointLights: PointLight[] = [];
@@ -39,7 +39,7 @@ export class Scene {
         return this.pointLightsDataTexture;
     }
 
-    public addObject(object: Object) {
+    public addObject(object: EngineObject) {
         this.objects.push(object);
     }
 

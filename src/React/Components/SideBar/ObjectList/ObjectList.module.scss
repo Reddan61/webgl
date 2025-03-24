@@ -1,0 +1,46 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 450px;
+    max-height: 450px;
+
+    font-size: 1.5em;
+
+    color: white;
+    background-color: rgb(43, 43, 43);
+    overflow-y: auto;
+
+    h1 {
+        padding: 0.5em 0.6666em;
+    }
+}
+
+// .container
+
+// .container::-webkit-scrollbar-track {
+//     background-color: darkgrey;
+// }
+
+.list {
+    display: flex;
+    flex-direction: column;
+}
+
+.item {
+    max-width: 100%;
+    padding: 0.33em 0.5em 0.33em 1.333em;
+
+    text-overflow: ellipsis;
+
+    cursor: pointer;
+    border: 1px solid transparent;
+
+    &:hover {
+        background-color: rgb(51, 77, 128);
+    }
+}
+
+.selected {
+    color: rgb(240, 168, 48);
+}

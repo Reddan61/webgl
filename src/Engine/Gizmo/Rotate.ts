@@ -1,14 +1,14 @@
-import { GizmoType } from "engine/Gizmo/GizmoType";
-import { Mesh } from "engine/Mesh";
-import { Object } from "engine/Object";
+import { vec3, vec4 } from "gl-matrix";
 import { Ray } from "engine/Ray";
+import { Mesh } from "engine/Mesh";
+import { AXIS_ENUM } from "engine/Utils/types";
+import { GizmoType } from "engine/Gizmo/GizmoType";
+import { EngineObject } from "engine/EngineObject";
 import { createHollowCircle } from "engine/Utils/CreateObjects/createHollowCircle";
 import {
     getAngleDegByTwoPointsWithOrigin,
     getAxisPlaneIntersection,
 } from "engine/Utils/MathUtilsFunc";
-import { AXIS_ENUM } from "engine/Utils/types";
-import { vec3, vec4 } from "gl-matrix";
 
 export class Rotate extends GizmoType {
     private startIntersection = null as vec3 | null;
@@ -49,13 +49,13 @@ export class Rotate extends GizmoType {
         meshes[AXIS_ENUM.Y] = circleYMesh;
         meshes[AXIS_ENUM.Z] = circleZMesh;
 
-        const model = new Object(meshes, [0, 0, 0], [1, 1, 1]);
+        const model = new EngineObject(meshes, [0, 0, 0], [1, 1, 1]);
         model.setSingleFace(true);
 
         super(model);
     }
 
-    public select(_: Object, ray: Ray, selectedAxis: AXIS_ENUM) {
+    public select(_: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {
         const gizmoPos = this.model.getTransform().getPosition();
 
         const intersection = getAxisPlaneIntersection(
@@ -71,7 +71,7 @@ export class Rotate extends GizmoType {
         this.startIntersection = intersection;
     }
 
-    public move(object: Object, ray: Ray, selectedAxis: AXIS_ENUM) {
+    public move(object: EngineObject, ray: Ray, selectedAxis: AXIS_ENUM) {
         if (!this.startIntersection) return;
 
         const objectPos = this.model.getTransform().getPosition();
@@ -90,7 +90,7 @@ export class Rotate extends GizmoType {
     }
 
     private change(
-        object: Object,
+        object: EngineObject,
         selectedAxis: AXIS_ENUM,
         intersection: vec3,
         startIntersection: vec3
@@ -105,6 +105,8 @@ export class Rotate extends GizmoType {
             selectedAxis
         );
 
-        transform.getRotation().rotateAroundAxis(selectedAxis, angle);
+        const rotation = transform.getRotation();
+
+        rotation.rotateByGlobalAxis(selectedAxis, angle);
     }
 }

@@ -28,11 +28,11 @@
         background-color: rgb(183, 183, 183);
 
         &:first-child {
-            transform: rotate(45deg);
+            transform: translateX(0.11111em) rotate(45deg);
         }
 
         &:last-child {
-            transform: translateX(-0.1875em) rotate(-45deg);
+            transform: translateX(-0.083333em) rotate(-45deg);
         }
     }
 }

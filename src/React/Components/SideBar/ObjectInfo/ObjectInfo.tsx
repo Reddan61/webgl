@@ -3,6 +3,7 @@ import { Engine } from "engine/Engine";
 import { EngineObject } from "engine/EngineObject";
 import { TextInput } from "ui/Components/SideBar/ObjectInfo/TextInput/TextInput";
 import { TransformationCollapse } from "ui/Components/SideBar/ObjectInfo/ObjectInfoCollapses/TransformationCollapse/TransformationCollapse";
+import { BonesAnimationsCollapse } from "ui/Components/SideBar/ObjectInfo/ObjectInfoCollapses/BonesAnimationsCollapse/BonesAnimationCollapse";
 
 import styles from "./ObjectInfo.module.scss";
 
@@ -44,6 +45,7 @@ export const ObjectInfo = () => {
             />
             <div className={styles.collapses}>
                 <TransformationCollapse object={selectedObject} />
+                <BonesAnimationsCollapse object={selectedObject} />
             </div>
         </div>
     );

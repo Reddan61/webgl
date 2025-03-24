@@ -32,7 +32,7 @@ export class Transform {
     }
 
     public setPosition(position: vec3) {
-        this.position = position;
+        vec3.copy(this.position, position);
         this.calculateMatrix();
 
         return this;

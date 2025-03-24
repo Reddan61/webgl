@@ -23,6 +23,8 @@ export class Gizmo {
     private static show = false;
     private static objectSelector: ObjectSelector;
 
+    private static unsubTransformObject: (() => void) | null = null;
+
     private static currentGizmo: GizmoType;
     private static currentGizmoType = GIZMO_TYPE_ENUM.TRANSLATION;
     private static gizmoTypes: Record<GIZMO_TYPE_ENUM, GizmoType> = {
@@ -110,11 +112,24 @@ export class Gizmo {
     }
 
     private static changeObject(object: EngineObject | null) {
+        this.unsubTransformObject?.();
+
         if (!object) {
             Gizmo.show = false;
 
             return;
         }
+
+        this.unsubTransformObject = object
+            .getTransform()
+            .subscribe((newTransform) => {
+                Gizmo.currentGizmo
+                    .getModel()
+                    .getTransform()
+                    .setPosition(newTransform.getPosition());
+
+                Gizmo.changeGizmoScaling(object);
+            });
 
         const objectPos = object.getTransform().getPosition();
         const gizmoTransform = Gizmo.currentGizmo.getModel().getTransform();

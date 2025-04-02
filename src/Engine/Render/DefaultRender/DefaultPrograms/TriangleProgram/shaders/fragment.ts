@@ -2,9 +2,6 @@ export const fragment = `#version 300 es
   precision mediump float;
 
   in vec2 fragTextureCoords;
-  in vec3 fragNormal;
-  in vec3 fragPosition;
-  in vec4 fragPositionLightSpace;
   in mat3 tbn;
 
   out vec4 fragColor;

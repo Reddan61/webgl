@@ -6,7 +6,7 @@ export const vertex = `#version 300 es
   in vec4 weight;
   in vec4 boneIndexes;
 
-  uniform mat4 transformation;
+  uniform mat4 globalTransformation;
   uniform mat4 view;
   uniform mat4 projection;
   uniform bool useBones;
@@ -15,7 +15,6 @@ export const vertex = `#version 300 es
   uniform float numBones;
 
   out vec2 fragTextureCoords;
-  out vec3 fragPosition;
 
   #define ROW0_U ((0.5 + 0.0) / 4.)
   #define ROW1_U ((0.5 + 1.0) / 4.)
@@ -42,11 +41,9 @@ export const vertex = `#version 300 es
                  getBoneMatrix(boneIndexes[3]) * vec4(vertexPosition, 1.0) * weight[3]);
           
 
-      gl_Position = projection * view * transformation * skinned;
-      fragPosition = (transformation * skinned).xyz;
+      gl_Position = projection * view * globalTransformation * skinned;
     } else {
-      gl_Position = projection * view * transformation * vec4(vertexPosition, 1.0);
-      fragPosition = (transformation * vec4(vertexPosition, 1.0)).xyz;
+      gl_Position = projection * view * globalTransformation * vec4(vertexPosition, 1.0);
     }
   }
 `;

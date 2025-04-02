@@ -90,12 +90,15 @@ export class ShadowMapProgram extends Program {
                 const boneMatrices = skeleton?.getSkinningMatrices();
                 const useBones = !!boneMatrices;
 
-                const modelMatrix = object.getMeshModelMatrix(mesh);
+                const meshTransform = mesh.getTransform();
+
+                const globalTransformationMatrix =
+                    meshTransform.getGlobalModelMatrix();
 
                 mesh.getPrimitives().forEach((prim) => {
                     this.setVariables({
                         useBones,
-                        modelMatrix,
+                        modelMatrix: globalTransformationMatrix,
                         indices: prim.getIndices(),
                         joints: prim.getJoints(),
                         weights: prim.getWeights(),

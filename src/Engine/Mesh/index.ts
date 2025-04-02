@@ -1,9 +1,12 @@
-import { mat4, vec3 } from "gl-matrix";
-import { MeshPrimitive } from "../MeshPrimitive";
-import { AABB } from "../AABB";
-import { PointLight } from "../Light/PointLight";
-import { Skeleton } from "../Skeleton";
+import { vec3 } from "gl-matrix";
+import { AABB } from "engine/AABB";
+import { Skeleton } from "engine/Skeleton";
+import { unsubArr } from "engine/Utils/Utils";
+import { MeshPrimitive } from "engine/MeshPrimitive";
+import { PointLight } from "engine/Light/PointLight";
 import { Transform } from "engine/Transform/Transform";
+
+type UpdateAABBSubscriberCb = (mesh: Mesh) => void;
 
 export class Mesh {
     private webgl: WebGL2RenderingContext | null = null;
@@ -17,12 +20,20 @@ export class Mesh {
 
     private transform: Transform;
 
+    private updateAABBSubscribers: UpdateAABBSubscriberCb[] = [];
+
     constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
         this.skeleton = skeleton;
         this.primitives = primitives;
 
         this.transform = new Transform();
+
         this.createAABB();
+        this.updateAABB();
+
+        this.transform.subscribe(() => {
+            this.updateAABB();
+        });
     }
 
     public _setWebGl(webgl: WebGL2RenderingContext) {
@@ -33,7 +44,12 @@ export class Mesh {
 
     public update() {
         this.skeleton?.update();
-        this.createAABB();
+    }
+
+    public addUpdateAABBSubscriber(cb: UpdateAABBSubscriberCb) {
+        this.updateAABBSubscribers.push(cb);
+
+        return unsubArr(this.updateAABBSubscribers, (el) => el === cb);
     }
 
     public setLight(light: PointLight | null) {
@@ -58,16 +74,35 @@ export class Mesh {
 
     public setSkeleton(skeleton: Skeleton | null) {
         this.skeleton = skeleton;
-        this.createAABB();
-    }
+        this.skeleton?.__setMesh(this);
 
-    public setModelMatrix(matrix: mat4) {
-        this.transform.setModelMatrix(matrix);
         this.createAABB();
+        this.updateAABB();
     }
 
     public getTransform() {
         return this.transform;
+    }
+
+    public updateAABB() {
+        if (this.skeleton) {
+            this.updateSkinnedAABB();
+        }
+
+        this.aabb.updateByModelMatrix(this.transform.getGlobalModelMatrix());
+        this.publishUpdateAABB();
+    }
+
+    private publishUpdateAABB() {
+        this.updateAABBSubscribers.forEach((cb) => cb(this));
+    }
+
+    private updateSkinnedAABB() {
+        const aabb = this._getSkinnedAABBFromPrimitives();
+
+        if (aabb) {
+            this.aabb = aabb;
+        }
     }
 
     private _getSkinnedAABBFromPrimitives() {

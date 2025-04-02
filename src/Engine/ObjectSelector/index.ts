@@ -1,9 +1,9 @@
-import { vec3, vec4 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 import { Ray } from "engine/Ray";
+import { Hit } from "engine/AABB";
 import { Mesh } from "engine/Mesh";
-import { AABB } from "engine/AABB";
-import { EngineObject } from "engine/EngineObject";
 import { unsubArr } from "engine/Utils/Utils";
+import { EngineObject } from "engine/EngineObject";
 
 interface SelectedObject {
     entity: {
@@ -15,12 +15,6 @@ interface SelectedObject {
         object: EngineObject;
         mesh: Mesh;
     } | null;
-}
-
-interface Hit {
-    near: number;
-    far: number;
-    point: vec3;
 }
 
 type OnChange = (selected: SelectedObject) => void;
@@ -98,6 +92,10 @@ export class ObjectSelector {
         };
 
         objects.forEach((object) => {
+            const objectHit = object.getAABB().hit(ray);
+
+            if (!objectHit) return;
+
             const nearestMesh = {
                 distToHit: Infinity,
                 mesh: null as Mesh | null,
@@ -105,30 +103,9 @@ export class ObjectSelector {
             };
 
             object.getMeshes().forEach((mesh) => {
-                const model = object.getMeshModelMatrix(mesh);
-
                 const aabb = mesh.getAABB();
-                const { max, min } = aabb.getMaxMin();
-                // get world coords of aabb
-                const convMax = vec4.create();
-                const convMin = vec4.create();
-                vec4.transformMat4(
-                    convMax,
-                    vec4.fromValues(max[0], max[1], max[2], 1.0),
-                    model
-                );
-                vec4.transformMat4(
-                    convMin,
-                    vec4.fromValues(min[0], min[1], min[2], 1.0),
-                    model
-                );
 
-                const hitAABB = new AABB(
-                    vec3.fromValues(convMax[0], convMax[1], convMax[2]),
-                    vec3.fromValues(convMin[0], convMin[1], convMin[2])
-                );
-
-                const hit = this.aabbHit(ray, hitAABB);
+                const hit = aabb.hit(ray);
 
                 if (!hit) return;
 
@@ -156,43 +133,6 @@ export class ObjectSelector {
         return {
             entity: nearest.entity,
             lastSelected: nearest.entity ?? this.selected?.entity ?? null,
-        };
-    }
-
-    private aabbHit(ray: Ray, aabb: AABB): Hit | null {
-        const invDirection = vec3.create();
-        vec3.inverse(invDirection, ray.getDirection());
-        const tMin = vec3.create();
-        const tMax = vec3.create();
-        const { max, min } = aabb.getMaxMin();
-
-        vec3.subtract(tMin, min, ray.getOrigin());
-        vec3.multiply(tMin, tMin, invDirection);
-
-        vec3.subtract(tMax, max, ray.getOrigin());
-        vec3.multiply(tMax, tMax, invDirection);
-
-        const t1 = vec3.create();
-        const t2 = vec3.create();
-
-        vec3.min(t1, tMin, tMax);
-        vec3.max(t2, tMin, tMax);
-
-        const near = Math.max(t1[0], Math.max(t1[1], t1[2]));
-        const far = Math.min(t2[0], Math.min(t2[1], t2[2]));
-
-        if (near > far || far < 0.0) {
-            return null;
-        }
-
-        const point = vec3.create();
-
-        vec3.scaleAndAdd(point, ray.getOrigin(), ray.getDirection(), near);
-
-        return {
-            near,
-            far,
-            point,
         };
     }
 }

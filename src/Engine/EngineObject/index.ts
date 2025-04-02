@@ -21,6 +21,8 @@ export class EngineObject {
 
     private onNameUpdateSubscribers: OnNameUpdateCb[] = [];
 
+    private needToUpdateAABB = false;
+
     constructor(
         meshes: Mesh[],
         position: vec3,
@@ -33,6 +35,14 @@ export class EngineObject {
         this.transform = new Transform();
         this.transform.setPosition(position);
         this.transform.setScaling(scaling);
+
+        this.meshes.forEach((mesh) => {
+            mesh.getTransform().setParentTransform(this.getTransform());
+            mesh.addUpdateAABBSubscriber(() => {
+                this.needToUpdateAABB = true;
+            });
+        });
+
         this.createAABB();
     }
 
@@ -84,7 +94,11 @@ export class EngineObject {
     public update() {
         this.selectedAnimation?.update();
         this.meshes.forEach((mesh) => mesh.update());
-        this.createAABB();
+
+        if (this.needToUpdateAABB) {
+            this.createAABB();
+            this.needToUpdateAABB = false;
+        }
     }
 
     public selectAnimation(animation: BoneAnimation | null) {
@@ -96,37 +110,12 @@ export class EngineObject {
     public getCurrentAnimation() {
         return this.selectedAnimation;
     }
-
-    public getMeshModelMatrix(mesh: Mesh) {
-        return mesh.getSkeleton() === null
-            ? // we need to mul because we dont have skinning in shaders
-              mat4.multiply(
-                  mat4.create(),
-                  this.transform.getModelMatrix(),
-                  mesh.getTransform().getModelMatrix()
-              )
-            : // it will transform with skinning matrix in shader
-              this.transform.getModelMatrix();
-    }
-
     public getAnimations() {
         return this.animations;
     }
 
     public getTransform() {
         return this.transform;
-    }
-
-    public getMeshNormalMatrix(mesh: Mesh) {
-        return mesh.getSkeleton() === null
-            ? // we need to mul because we dont have skinning in shaders
-              mat3.multiply(
-                  mat3.create(),
-                  this.transform.getNormalMatrix(),
-                  mesh.getTransform().getNormalMatrix()
-              )
-            : // it will transform with skinning matrix in shader
-              this.transform.getNormalMatrix();
     }
 
     private createAABB() {

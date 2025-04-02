@@ -5,9 +5,9 @@ export enum ENGINE_CONFIG_KEYS {
 }
 
 let ENGINE_CONFIG = {
-    [ENGINE_CONFIG_KEYS.SHOW_AABB]: false,
+    [ENGINE_CONFIG_KEYS.SHOW_AABB]: true,
     [ENGINE_CONFIG_KEYS.SHOW_POINT_LIGHT_SHADOW_MAP]: false,
-    [ENGINE_CONFIG_KEYS.SHOW_RAY_CAST_HIT_POINT]: false,
+    [ENGINE_CONFIG_KEYS.SHOW_RAY_CAST_HIT_POINT]: true,
 };
 
 export const changeEngineConfig = (options: Partial<typeof ENGINE_CONFIG>) => {

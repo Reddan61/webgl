@@ -99,6 +99,10 @@ export class Gizmo {
         return !!entity;
     }
 
+    public static update() {
+        Gizmo.getGizmoModel().update();
+    }
+
     public static isMovingGizmo() {
         return Gizmo.isMoving;
     }
@@ -109,55 +113,6 @@ export class Gizmo {
 
     public static getObjectSelector() {
         return Gizmo.objectSelector;
-    }
-
-    private static changeObject(object: EngineObject | null) {
-        this.unsubTransformObject?.();
-
-        if (!object) {
-            Gizmo.show = false;
-
-            return;
-        }
-
-        this.unsubTransformObject = object
-            .getTransform()
-            .subscribe((newTransform) => {
-                Gizmo.currentGizmo
-                    .getModel()
-                    .getTransform()
-                    .setPosition(newTransform.getPosition());
-
-                Gizmo.changeGizmoScaling(object);
-            });
-
-        const objectPos = object.getTransform().getPosition();
-        const gizmoTransform = Gizmo.currentGizmo.getModel().getTransform();
-        gizmoTransform.setPosition(objectPos);
-        Gizmo.changeGizmoScaling(object);
-        Gizmo.currentGizmo.update(object);
-
-        Gizmo.show = true;
-    }
-
-    private static changeGizmoScaling(object: EngineObject) {
-        const camera = Engine.getScene()?.getCamera();
-
-        if (!camera) {
-            Gizmo.show = false;
-            return;
-        }
-
-        const cameraPos = camera.getTransform().getPosition();
-
-        const distance =
-            vec3.distance(object.getTransform().getPosition(), cameraPos) * 0.1;
-        const newScaling = vec3.create();
-
-        const initScale = this.currentGizmo.getInitScale();
-        vec3.scale(newScaling, initScale, distance);
-
-        Gizmo.currentGizmo.getModel().getTransform().setScaling(newScaling);
     }
 
     public static clear() {
@@ -237,5 +192,55 @@ export class Gizmo {
         this.currentGizmo.move(sceneObjectSelected, ray, selectedAxis);
 
         Gizmo.changeGizmoScaling(sceneObjectSelected);
+    }
+
+    private static changeObject(object: EngineObject | null) {
+        this.unsubTransformObject?.();
+
+        if (!object) {
+            Gizmo.show = false;
+
+            return;
+        }
+
+        this.unsubTransformObject = object
+            .getTransform()
+            .subscribe((newTransform) => {
+                Gizmo.currentGizmo
+                    .getModel()
+                    .getTransform()
+                    .setPosition(newTransform.getPosition());
+
+                Gizmo.changeGizmoScaling(object);
+            });
+
+        const objectPos = object.getTransform().getPosition();
+        const gizmoTransform = Gizmo.currentGizmo.getModel().getTransform();
+        gizmoTransform.setPosition(objectPos);
+
+        Gizmo.changeGizmoScaling(object);
+        Gizmo.currentGizmo.update(object);
+
+        Gizmo.show = true;
+    }
+
+    private static changeGizmoScaling(object: EngineObject) {
+        const camera = Engine.getScene()?.getCamera();
+
+        if (!camera) {
+            Gizmo.show = false;
+            return;
+        }
+
+        const cameraPos = camera.getTransform().getPosition();
+
+        const distance =
+            vec3.distance(object.getTransform().getPosition(), cameraPos) * 0.1;
+        const newScaling = vec3.create();
+
+        const initScale = this.currentGizmo.getInitScale();
+        vec3.scale(newScaling, initScale, distance);
+
+        Gizmo.currentGizmo.getModel().getTransform().setScaling(newScaling);
     }
 }

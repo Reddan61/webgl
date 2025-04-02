@@ -1,6 +1,9 @@
 import { mat4, quat, vec3, vec4 } from "gl-matrix";
-import { GLTFNode } from "../Utils/GLTF/types";
-import { Mesh } from "../Mesh";
+import { Mesh } from "engine/Mesh";
+import { unsubArr } from "engine/Utils/Utils";
+import { GLTFNode } from "engine/Utils/GLTF/types";
+
+type UpdateSubscriberCb = (bone: Bone) => void;
 
 export class Bone {
     private localMatrix: mat4;
@@ -18,6 +21,8 @@ export class Bone {
     private defaultScale: vec3;
     private defaultRotation: quat;
     private defaultTranslation: vec3;
+
+    private updateSubscribers: UpdateSubscriberCb[] = [];
 
     constructor(bone: GLTFNode, parent: Bone | null, mesh: Mesh | null) {
         const {
@@ -100,8 +105,19 @@ export class Bone {
 
     public update() {
         this.calculateMatrix();
+        this.publishUpdate();
 
         this.children.forEach((child) => child.update());
+    }
+
+    public addUpdateSubscriber(cb: UpdateSubscriberCb) {
+        this.updateSubscribers.push(cb);
+
+        return unsubArr(this.updateSubscribers, (el) => el === cb);
+    }
+
+    private publishUpdate() {
+        this.updateSubscribers.forEach((cb) => cb(this));
     }
 
     private calculateMatrix() {
@@ -134,6 +150,6 @@ export class Bone {
             mat4.multiply(this.worldMatrix, parentMatrix, this.localMatrix);
         }
 
-        this.mesh?.setModelMatrix(this.worldMatrix);
+        this.mesh?.getTransform().setModelMatrix(this.worldMatrix);
     }
 }

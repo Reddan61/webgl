@@ -1,4 +1,4 @@
-import { mat3, mat4, vec4 } from "gl-matrix";
+import { mat4, vec4 } from "gl-matrix";
 import { vertex } from "./shaders/vertex";
 import { fragment } from "./shaders/fragment";
 import { Scene } from "engine/Scene";
@@ -37,7 +37,7 @@ export class TriangleProgram extends Program {
     private colorFactorUniform: Uniform4fv;
     private alphaCutoffUniform: Uniform1f;
 
-    private transformationMatrix: UniformMatrix4fv;
+    private globalTransformationMatrix: UniformMatrix4fv;
     private viewMatUniform: UniformMatrix4fv;
     private projectionMatUniform: UniformMatrix4fv;
 
@@ -77,14 +77,15 @@ export class TriangleProgram extends Program {
         }
 
         object.getMeshes().forEach((mesh) => {
-            const isLight = Boolean(mesh.getLight());
             const primitives = mesh.getPrimitives();
             const skeleton = mesh.getSkeleton();
             const boneMatrices = skeleton?.getSkinningMatrices();
             const useBones = !!boneMatrices;
 
-            const modelMatrix = object.getMeshModelMatrix(mesh);
-            const normalMatrix = object.getMeshNormalMatrix(mesh);
+            const meshTransform = mesh.getTransform();
+
+            const globalTransformationMatrix =
+                meshTransform.getGlobalModelMatrix();
 
             primitives.forEach((primitive) => {
                 const material = primitive.getMaterial();
@@ -94,12 +95,10 @@ export class TriangleProgram extends Program {
                     material,
                     useBones,
                     scene,
-                    modelMatrix,
-                    normalMatrix,
+                    globalTransformationMatrix,
                     bonesDataTexture: skeleton?.getBonesDataTexture() ?? null,
                     bonesCount: skeleton?.getBonesCount() ?? 0,
 
-                    useLight: !isLight,
                     colorFactor: material.getColor(),
                     objectTexture: material.getBaseTexture(),
                     cameraPosition: new Float32Array(
@@ -194,10 +193,10 @@ export class TriangleProgram extends Program {
             this.program,
             "view"
         );
-        this.transformationMatrix = new UniformMatrix4fv(
+        this.globalTransformationMatrix = new UniformMatrix4fv(
             this.webgl,
             this.program,
-            "transformation"
+            "globalTransformation"
         );
 
         this.useTextureUniform = new Uniform1i(
@@ -260,12 +259,10 @@ export class TriangleProgram extends Program {
 
     private setVertexShaderBuffers({
         useBones,
-        modelMatrix,
-        normalMatrix,
+        globalTransformationMatrix,
         colorFactor,
         objectTexture,
         scene,
-        useLight,
         cameraPosition,
         bonesDataTexture,
         bonesCount,
@@ -276,14 +273,12 @@ export class TriangleProgram extends Program {
         primitive: MeshPrimitive;
         scene: Scene;
         material: Material;
-        modelMatrix: mat4;
-        normalMatrix: mat3;
+        globalTransformationMatrix: mat4;
         objectTexture: ImageTexture | null;
         bonesDataTexture: DataTexture | null;
         bonesCount: number;
         colorFactor: vec4;
         cameraPosition: Float32Array;
-        useLight: boolean;
     }) {
         const camera = scene.getCamera();
 
@@ -308,7 +303,7 @@ export class TriangleProgram extends Program {
 
         this.colorFactorUniform.setData(colorFactor);
 
-        this.transformationMatrix.setData(modelMatrix);
+        this.globalTransformationMatrix.setData(globalTransformationMatrix);
 
         this.objectTextureUniform.setData(objectTexture?.getTexture() ?? null);
 

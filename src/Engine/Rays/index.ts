@@ -15,13 +15,11 @@ export class Rays {
 
         const x_gl = (x / rect.width) * 2 - 1;
         const y_gl = (y / rect.height) * -2 + 1;
-        // позиция на экране
         const clip = vec4.fromValues(x_gl, y_gl, -1.0, 1.0);
 
         const view = camera.getView();
         const proj = camera.getProjection();
 
-        // получение луча в мировых координатах
         const invProj = mat4.create();
         const invView = mat4.create();
         mat4.invert(invProj, proj);

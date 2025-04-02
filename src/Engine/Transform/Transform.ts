@@ -6,6 +6,9 @@ import { unsubArr } from "engine/Utils/Utils";
 type OnTransformSubscriberCb = (transform: Transform) => void;
 
 export class Transform {
+    private parentTransform: Transform | null = null;
+    private unsubParentTransform: (() => void) | null = null;
+
     private position = vec3.create();
     private scaling = vec3.fromValues(1, 1, 1);
 
@@ -29,6 +32,18 @@ export class Transform {
             this.calculateMatrix();
         });
         this.calculateMatrix();
+    }
+
+    public setParentTransform(transform: Transform | null) {
+        this.unsubParentTransform?.();
+
+        this.parentTransform = transform;
+        this.publish();
+
+        this.unsubParentTransform =
+            this.parentTransform?.subscribe(() => {
+                this.publish();
+            }) ?? null;
     }
 
     public setPosition(position: vec3) {
@@ -76,12 +91,40 @@ export class Transform {
         return this.scaling;
     }
 
-    public getModelMatrix() {
+    public getLocalModelMatrix() {
         return this.resultModelMatrix;
     }
 
-    public getNormalMatrix() {
+    public getGlobalModelMatrix(): mat4 {
+        if (!this.parentTransform) {
+            return this.getLocalModelMatrix();
+        }
+
+        return mat4.mul(
+            mat4.create(),
+            this.parentTransform.getGlobalModelMatrix(),
+            this.getLocalModelMatrix()
+        );
+    }
+
+    public getParentGlobalModelMatrix() {
+        return this.parentTransform?.getGlobalModelMatrix() ?? mat4.create();
+    }
+
+    public getLocalNormalMatrix() {
         return this.normalMatrix;
+    }
+
+    public getGlobalNormalMatrix(): mat3 {
+        if (!this.parentTransform) {
+            return this.getLocalNormalMatrix();
+        }
+
+        return mat3.mul(
+            mat3.create(),
+            this.parentTransform.getGlobalNormalMatrix(),
+            this.getLocalNormalMatrix()
+        );
     }
 
     public subscribe(cb: OnTransformSubscriberCb) {

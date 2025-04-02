@@ -69,7 +69,8 @@ export const createSimpleScene = async () => {
 
     const shiba = await loadGLTF(shibaURL);
     shiba.setFlipYTexture(false);
-    shiba.getTransform().setPosition([0, 4, -21]);
+    shiba.getTransform().setPosition([0, 10, -21]);
+    shiba.getTransform().setScaling([5, 5, 5]);
     shiba.setName("shiba");
 
     const duck = await loadGLTF(duckURL);
@@ -98,9 +99,8 @@ export const createSimpleScene = async () => {
         0.8
     );
     const ambientLight = new AmbientLight(vec3.fromValues(1, 1, 1), 0.1);
-
     const pointLight1 = new PointLight(
-        vec3.fromValues(0, 0, 0),
+        vec3.fromValues(-10, 0, 0),
         vec3.fromValues(0, 0, 1),
         1
     );

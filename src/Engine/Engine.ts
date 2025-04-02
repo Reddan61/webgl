@@ -47,6 +47,7 @@ export class Engine {
 
     public static update(delta: number) {
         Engine.scene?.update(delta);
+        Gizmo.update();
     }
 
     public static getControls() {

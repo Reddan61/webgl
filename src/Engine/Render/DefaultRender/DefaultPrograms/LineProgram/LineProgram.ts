@@ -42,7 +42,7 @@ export class LineProgram extends Program {
 
         objects.forEach((object) => {
             object.getMeshes().forEach((mesh) => {
-                const modelMatrix = object.getMeshModelMatrix(mesh);
+                const modelMatrix = mat4.create();
                 const isSelected = selectedObject?.entity?.object === object;
 
                 const aabb = mesh.getAABB();
@@ -63,16 +63,12 @@ export class LineProgram extends Program {
                     0
                 );
             });
-        });
 
-        const gizmoModel = Gizmo.getGizmoModel();
-        const selected = Gizmo.getObjectSelector().getSelected().entity;
+            const aabb = object.getAABB();
 
-        gizmoModel.getMeshes().forEach((mesh) => {
-            const modelMatrix = gizmoModel.getMeshModelMatrix(mesh);
-            const isSelected = selected?.mesh === mesh;
+            const modelMatrix = mat4.create();
+            const isSelected = selectedObject?.entity?.object === object;
 
-            const aabb = mesh.getAABB();
             const aabbIndices = aabb.getIndices();
 
             this.setVariables(

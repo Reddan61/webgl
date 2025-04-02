@@ -134,12 +134,14 @@ export class ShadowAtlasProgram extends Program {
                         const boneMatrices = skeleton?.getSkinningMatrices();
                         const useBones = !!boneMatrices;
 
-                        const modelMatrix = object.getMeshModelMatrix(mesh);
+                        const meshTransform = mesh.getTransform();
+                        const globalTransformationMatrix =
+                            meshTransform.getGlobalModelMatrix();
 
                         mesh.getPrimitives().forEach((prim) => {
                             this.setVariables({
                                 useBones,
-                                modelMatrix,
+                                modelMatrix: globalTransformationMatrix,
                                 index: i,
                                 pointLight: light,
                                 indices: prim.getIndices(),

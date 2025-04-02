@@ -53,7 +53,7 @@ export class GizmoProgram extends Program {
                 this.setVariables(
                     prim.getVertices(),
                     indices,
-                    gizmoModel.getMeshModelMatrix(mesh),
+                    mesh.getTransform().getGlobalModelMatrix(),
                     prim.getMaterial().getColor(),
                     camera
                 );

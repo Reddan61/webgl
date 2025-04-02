@@ -120,8 +120,12 @@ export class TriangleProgram extends Program {
             const boneMatrices = skeleton?.getSkinningMatrices();
             const useBones = !!boneMatrices;
 
-            const modelMatrix = object.getMeshModelMatrix(mesh);
-            const normalMatrix = object.getMeshNormalMatrix(mesh);
+            const meshTransform = mesh.getTransform();
+
+            const globalTransformationMatrix =
+                meshTransform.getGlobalModelMatrix();
+
+            const globalNormalMatrix = meshTransform.getGlobalNormalMatrix();
 
             primitives.forEach((primitive) => {
                 const material = primitive.getMaterial();
@@ -131,8 +135,8 @@ export class TriangleProgram extends Program {
                     material,
                     useBones,
                     scene,
-                    modelMatrix,
-                    normalMatrix,
+                    modelMatrix: globalTransformationMatrix,
+                    normalMatrix: globalNormalMatrix,
                     bonesDataTexture: skeleton?.getBonesDataTexture() ?? null,
                     bonesCount: skeleton?.getBonesCount() ?? 0,
                     shadowMapTexture: shadowMapProgram.getShadowMapTexture(),

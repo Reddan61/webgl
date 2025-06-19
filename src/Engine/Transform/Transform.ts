@@ -83,6 +83,16 @@ export class Transform {
         return this.position;
     }
 
+    public getGlobalPosition(): vec3 {
+        if (!this.parentTransform) return this.position;
+
+        return vec3.add(
+            vec3.create(),
+            this.parentTransform.getGlobalPosition(),
+            this.position
+        );
+    }
+
     public getRotation() {
         return this.rotation;
     }

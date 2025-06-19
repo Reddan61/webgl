@@ -29,6 +29,8 @@ export const BonesAnimationsCollapse: FC<IProps> = ({ object }) => {
         setAnimations([...object.getAnimations()]);
     }, [object]);
 
+    if (animations.length <= 0) return null;
+
     return (
         <Collapse title="Bones animations">
             <ul className={styles.list}>

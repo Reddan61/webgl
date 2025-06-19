@@ -3,6 +3,7 @@ import styles from "./NumberInput.module.scss";
 
 interface IProps {
     value?: number;
+    text?: string;
     onBlur?: (value: number) => void;
 }
 
@@ -10,6 +11,7 @@ const notNumberRegex = /[^0-9\-\.]/g;
 
 const NumberInputComponent: FC<IProps> = ({
     value = 0,
+    text = "",
     onBlur: onBlurProp,
 }) => {
     const [curValue, setCurValue] = useState(String(value));
@@ -39,13 +41,16 @@ const NumberInputComponent: FC<IProps> = ({
     }, [value]);
 
     return (
-        <input
-            type="text"
-            value={curValue}
-            onChange={onChange}
-            onBlur={onBlur}
-            className={styles.input}
-        />
+        <div className={styles.container}>
+            <span>{text}</span>
+            <input
+                type="text"
+                value={curValue}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={styles.input}
+            />
+        </div>
     );
 };
 

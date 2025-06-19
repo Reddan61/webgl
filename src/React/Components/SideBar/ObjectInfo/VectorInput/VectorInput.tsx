@@ -6,10 +6,11 @@ import styles from "./VectorInput.module.scss";
 interface IProps {
     title: string;
     defaultValue: number[];
+    axisText?: string[];
     onChange: (value: number[]) => void;
 }
 
-const AXIS = ["X", "Y", "Z"];
+const DEFAULT_AXIS_TEXT = ["X", "Y", "Z"];
 
 interface IPropsItem {
     value: number;
@@ -18,23 +19,24 @@ interface IPropsItem {
     onChange: (value: number, index: number) => void;
 }
 
-const Item: FC<IPropsItem> = memo(({ index, value, text, onChange }) => {
-    return (
-        <div className={styles.item}>
-            <span>{text}:</span>
+const VectorNumberItem: FC<IPropsItem> = memo(
+    ({ index, value, text, onChange }) => {
+        return (
             <NumberInput
                 value={value}
+                text={`${text}:`}
                 onBlur={(value) => {
                     onChange(value, index);
                 }}
             />
-        </div>
-    );
-});
+        );
+    }
+);
 
 const VectorInputComponent: FC<IProps> = ({
     title,
     defaultValue,
+    axisText = DEFAULT_AXIS_TEXT,
     onChange,
 }) => {
     const [value, setValue] = useState(defaultValue);
@@ -63,10 +65,10 @@ const VectorInputComponent: FC<IProps> = ({
             <div className={styles.elements}>
                 {value.map((_, index) => {
                     return (
-                        <Item
+                        <VectorNumberItem
                             key={index}
                             index={index}
-                            text={AXIS[index]}
+                            text={axisText[index]}
                             value={value[index]}
                             onChange={onValueBlur}
                         />

@@ -21,28 +21,28 @@ import elephantURL from "resources/elephant/elephant.gltf";
 const createPointLight = (pointLight: PointLight) => {
     const sphere = createSphere(2, 15);
     const lightColor = pointLight.getColor();
-    const mesh = new Mesh([
-        new MeshPrimitive(
-            {
-                indices: sphere.indices,
-                normals: sphere.normals,
-                textureCoords: [],
-                vertices: {
-                    data: sphere.vertices,
-                    max: sphere.max as number[],
-                    min: sphere.min as number[],
-                },
+    const primitive = new MeshPrimitive(
+        {
+            indices: sphere.indices,
+            normals: sphere.normals,
+            textureCoords: [],
+            vertices: {
+                data: sphere.vertices,
+                max: sphere.max as number[],
+                min: sphere.min as number[],
             },
-            new Material({
-                color: vec4.fromValues(
-                    lightColor[0],
-                    lightColor[1],
-                    lightColor[2],
-                    1
-                ),
-            })
-        ),
-    ]);
+        },
+        new Material({
+            color: vec4.fromValues(
+                lightColor[0],
+                lightColor[1],
+                lightColor[2],
+                1
+            ),
+        })
+    );
+    const mesh = new Mesh([primitive]);
+
     mesh.setLight(pointLight);
 
     const pointLightObject = new EngineObject(
@@ -50,6 +50,14 @@ const createPointLight = (pointLight: PointLight) => {
         pointLight.getPosition(),
         [1, 1, 1]
     );
+
+    pointLight.onColorChangeSubscribe(() => {
+        const color = pointLight.getColor();
+
+        primitive
+            .getMaterial()
+            .setColor(vec4.fromValues(color[0], color[1], color[2], 1));
+    });
 
     return pointLightObject;
 };
@@ -102,7 +110,8 @@ export const createSimpleScene = async () => {
     const pointLight1 = new PointLight(
         vec3.fromValues(-10, 0, 0),
         vec3.fromValues(0, 0, 1),
-        1
+        1,
+        true
     );
     const pointLight2 = new PointLight(
         vec3.fromValues(10, 0, 0),

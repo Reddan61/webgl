@@ -1,6 +1,5 @@
 import { vec3 } from "gl-matrix";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
-import { EngineObject } from "engine/EngineObject";
 import { Transform } from "engine/Transform/Transform";
 import { Collapse } from "ui/Components/SideBar/ObjectInfo/Collapsse/Collapse";
 import { VectorInput } from "ui/Components/SideBar/ObjectInfo/VectorInput/VectorInput";
@@ -8,7 +7,7 @@ import { VectorInput } from "ui/Components/SideBar/ObjectInfo/VectorInput/Vector
 import styles from "./TransformationCollapse.module.scss";
 
 interface IProps {
-    object: EngineObject;
+    transform: Transform;
 }
 
 interface IOptions {
@@ -27,34 +26,27 @@ const createOptions = (transform: Transform): IOptions => {
     };
 };
 
-export const TransformationCollapse: FC<IProps> = ({ object }) => {
-    const [options, setOptions] = useState<IOptions>(
-        createOptions(object.getTransform())
-    );
+export const TransformationCollapse: FC<IProps> = ({ transform }) => {
+    const [options, setOptions] = useState<IOptions>(createOptions(transform));
 
-    const objectRef = useRef(object);
-    objectRef.current = object;
+    const transformRef = useRef(transform);
+    transformRef.current = transform;
 
     const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const onChangePosition = useCallback((value: number[]) => {
-        objectRef.current.getTransform().setPosition(value as vec3);
+        transformRef.current.setPosition(value as vec3);
     }, []);
 
     const onChangeScaling = useCallback((value: number[]) => {
-        objectRef.current.getTransform().setScaling(value as vec3);
+        transformRef.current.setScaling(value as vec3);
     }, []);
 
     const onChangeRotation = useCallback((value: number[]) => {
-        objectRef.current
-            .getTransform()
-            .getRotation()
-            .rotate(...value);
+        transformRef.current.getRotation().rotate(...value);
     }, []);
 
     useEffect(() => {
-        const transform = object.getTransform();
-
         const unsubTransform = transform.subscribe((newTransform) => {
             if (throttleRef.current) {
                 clearTimeout(throttleRef.current);
@@ -72,11 +64,11 @@ export const TransformationCollapse: FC<IProps> = ({ object }) => {
 
             unsubTransform();
         };
-    }, [object]);
+    }, [transform]);
 
     useEffect(() => {
-        setOptions(createOptions(object.getTransform()));
-    }, [object]);
+        setOptions(createOptions(transform));
+    }, [transform]);
 
     return (
         <Collapse title="Transformation">

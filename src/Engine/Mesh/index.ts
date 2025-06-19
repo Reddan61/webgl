@@ -33,6 +33,7 @@ export class Mesh {
 
         this.transform.subscribe(() => {
             this.updateAABB();
+            this.light?.setPosition(this.transform.getGlobalPosition());
         });
     }
 

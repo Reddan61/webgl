@@ -10,3 +10,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.container {
+    display: flex;
+    align-items: center;
+    gap: 0.6666em;
+}

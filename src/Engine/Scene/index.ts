@@ -15,8 +15,6 @@ export class Scene {
 
     private pointLightsDataTexture: DataTexture | null;
 
-    private pointLightsChanged = false;
-
     constructor(
         camera: Camera,
         directional: DirectionalLight,
@@ -48,7 +46,11 @@ export class Scene {
     }
 
     public addPointLight(light: PointLight) {
-        light.setOnUpdate(() => this.onUpdatePointLight());
+        light.subscribeOnTransformUpdate(() => this.onUpdatePointLight());
+        light.subscribeWithShadowUpdate(() => this.onUpdatePointLight());
+        light.onBrightChangeSubscribe(() => this.onUpdatePointLight());
+        light.onColorChangeSubscribe(() => this.onUpdatePointLight());
+
         this.pointLights.push(light);
     }
 
@@ -107,7 +109,12 @@ export class Scene {
                     position[2],
                     bright
                 ) as number[]),
-                ...(vec4.fromValues(0, 0, 0, light.getFarPlane()) as number[]),
+                ...(vec4.fromValues(
+                    Number(light.getWithShadow()),
+                    0,
+                    0,
+                    light.getFarPlane()
+                ) as number[]),
                 ...(vec4.fromValues(
                     offset[0],
                     offset[1],

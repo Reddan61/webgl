@@ -1,5 +1,6 @@
 import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
 import { Light } from "..";
+import { unsubArr } from "engine/Utils/Utils";
 
 type Listener = () => unknown;
 
@@ -14,18 +15,27 @@ const directions = [
 
 export class PointLight extends Light {
     private position: vec3;
-    private onUpdate: Listener | null = null;
+    private onTransformUpdateSubscribers: Listener[] = [];
+    private onWithShadowUpdateSubscribers: Listener[] = [];
     private lightMatrices: mat4[];
     private projMatrix: mat4;
     private farPlane = 100;
     private nearPlane = 0.1;
 
+    private withShadow = false;
+
     private atlasScale = vec2.create();
     private atlasOffset = vec2.create();
 
-    constructor(position: vec3, color: vec3, bright: number) {
+    constructor(
+        position: vec3,
+        color: vec3,
+        bright: number,
+        withShadow = false
+    ) {
         super(color, bright);
         this.position = position;
+        this.withShadow = withShadow;
 
         this.calculateLightMatrix();
     }
@@ -42,7 +52,6 @@ export class PointLight extends Light {
     public _setAtlas(scale: vec2, offset: vec2) {
         this.atlasScale = scale;
         this.atlasOffset = offset;
-        this.onUpdate?.();
     }
 
     public _getAtlas() {
@@ -52,12 +61,36 @@ export class PointLight extends Light {
         };
     }
 
-    public setOnUpdate(listener: Listener) {
-        this.onUpdate = listener;
+    public subscribeOnTransformUpdate(listener: Listener) {
+        this.onTransformUpdateSubscribers.push(listener);
+
+        return unsubArr(
+            this.onTransformUpdateSubscribers,
+            (cur) => cur === listener
+        );
+    }
+
+    public subscribeWithShadowUpdate(listener: Listener) {
+        this.onWithShadowUpdateSubscribers.push(listener);
+
+        return unsubArr(
+            this.onWithShadowUpdateSubscribers,
+            (cur) => cur === listener
+        );
     }
 
     public getLightMatrices() {
         return this.lightMatrices;
+    }
+
+    public setWithShadow(bool: boolean) {
+        this.withShadow = bool;
+
+        this.publicWithShadowSubscribers();
+    }
+
+    public getWithShadow() {
+        return this.withShadow;
     }
 
     public getProjMatrix() {
@@ -68,9 +101,16 @@ export class PointLight extends Light {
         return this.farPlane;
     }
 
+    private publicTransformSubscribers() {
+        this.onTransformUpdateSubscribers.forEach((cb) => cb());
+    }
+
+    private publicWithShadowSubscribers() {
+        this.onWithShadowUpdateSubscribers.forEach((cb) => cb());
+    }
+
     private update() {
         this.calculateLightMatrix();
-        this.onUpdate?.();
     }
 
     private calculateLightMatrix() {
@@ -101,5 +141,7 @@ export class PointLight extends Light {
                 mat4.multiply(mat4.create(), this.projMatrix, viewMatrix)
             );
         });
+
+        this.publicTransformSubscribers();
     }
 }

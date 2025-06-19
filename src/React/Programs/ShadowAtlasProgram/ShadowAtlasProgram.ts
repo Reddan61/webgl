@@ -87,9 +87,13 @@ export class ShadowAtlasProgram extends Program {
         const pointLights = scene.getPointLights();
         const objects = scene.getObjects();
 
+        const pointLightsWithShadow = pointLights.filter((light) =>
+            light.getWithShadow()
+        );
+
         // 6 граней (cubeTexture)
         const numCols = 6;
-        const numRows = pointLights.length;
+        const numRows = pointLightsWithShadow.length;
 
         const atlasSizePerElementX = this.SHADOW_MAP_WIDTH / numCols;
         const atlasSizePerElementY = this.SHADOW_MAP_HEIGHT / numRows;
@@ -101,7 +105,11 @@ export class ShadowAtlasProgram extends Program {
         this.bind();
 
         for (let i = 0; i < 6; i++) {
-            pointLights.forEach((light, lightIndex) => {
+            pointLightsWithShadow.forEach((light, lightIndex) => {
+                const withShadow = light.getWithShadow();
+
+                if (!withShadow) return;
+
                 const cubeFaceIndex = lightIndex * 6 + i;
                 const col = cubeFaceIndex % numCols;
                 const row = Math.floor(cubeFaceIndex / numCols);

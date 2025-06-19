@@ -6,8 +6,8 @@ export const fragment = `#version 300 es
   #define SHADOW_SOFT_SAMPLERS 2
 
   struct AmbientLight {
-    float bright;
     vec3 color;
+    float bright;
   };
 
   struct DirectionalLight {
@@ -17,12 +17,13 @@ export const fragment = `#version 300 es
   };
 
   struct PointLight {
-    vec2 atlasOffset;
-    vec2 atlasScale;
     vec3 color;
     vec3 position;
+    vec2 atlasOffset;
+    vec2 atlasScale;
     float bright;
     float farPlane;
+    bool withShadow;
   };
 
   in vec2 fragTextureCoords;
@@ -147,7 +148,8 @@ export const fragment = `#version 300 es
 
     float uColor = texIndex / texWidth;
     float uPosition = (texIndex + 1.0) / texWidth;
-    float uFarPlane = (texIndex + 2.0) / texWidth;
+    // vec4( bool withShadow, 0, 0, float farPlane)
+    float uOptionsPlane = (texIndex + 2.0) / texWidth;
     float uAtlas = (texIndex + 3.0) / texWidth;
     
     vec4 colorData = texture(pointLightsDataTexture, vec2(uColor, 0));
@@ -157,8 +159,9 @@ export const fragment = `#version 300 es
     light.position = positionData.rgb;
     light.bright = positionData.a;
 
-    vec4 farPlaneData = texture(pointLightsDataTexture, vec2(uFarPlane, 0));
-    light.farPlane = farPlaneData.w;
+    vec4 optionsData = texture(pointLightsDataTexture, vec2(uOptionsPlane, 0));
+    light.farPlane = optionsData.w;
+    light.withShadow = optionsData.x > 0.0;
 
     vec4 atlasData = texture(pointLightsDataTexture, vec2(uAtlas, 0));
     light.atlasOffset = atlasData.xy;
@@ -184,7 +187,7 @@ export const fragment = `#version 300 es
     float light_linear = 0.1;
     float light_quadratic = 0.0;
 
-    float shadow = calculatePointShadow(light, normal);
+    float shadow = light.withShadow ? calculatePointShadow(light, normal) : 1.0;
 
     vec3 pointLightDir = light.position - fragPosition;
     float distance = length(pointLightDir);

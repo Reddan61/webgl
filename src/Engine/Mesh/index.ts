@@ -5,22 +5,23 @@ import { unsubArr } from "engine/Utils/Utils";
 import { MeshPrimitive } from "engine/MeshPrimitive";
 import { PointLight } from "engine/Light/PointLight";
 import { Transform } from "engine/Transform/Transform";
+import { Bone } from "engine/Bones/Bones";
 
 type UpdateAABBSubscriberCb = (mesh: Mesh) => void;
 
 export class Mesh {
-    private webgl: WebGL2RenderingContext | null = null;
+    protected webgl: WebGL2RenderingContext | null = null;
 
-    private aabb: AABB;
+    protected aabb: AABB;
 
-    private primitives: MeshPrimitive[] = [];
-    private skeleton: Skeleton | null = null;
+    protected primitives: MeshPrimitive[] = [];
+    protected skeleton: Skeleton | null = null;
 
-    private light: PointLight | null = null;
+    protected light: PointLight | null = null;
 
-    private transform: Transform;
+    protected transform: Transform;
 
-    private updateAABBSubscribers: UpdateAABBSubscriberCb[] = [];
+    protected updateAABBSubscribers: UpdateAABBSubscriberCb[] = [];
 
     constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
         this.skeleton = skeleton;
@@ -94,11 +95,25 @@ export class Mesh {
         this.publishUpdateAABB();
     }
 
-    private publishUpdateAABB() {
+    public copy(bones: Bone[]) {
+        const copiedPrimitives = this.primitives.map((primitive) =>
+            primitive.copy()
+        );
+
+        const self = new Mesh(copiedPrimitives);
+
+        const copiedSkeleton = this.skeleton?.copy(bones) ?? null;
+
+        self.setSkeleton(copiedSkeleton);
+
+        return self;
+    }
+
+    protected publishUpdateAABB() {
         this.updateAABBSubscribers.forEach((cb) => cb(this));
     }
 
-    private updateSkinnedAABB() {
+    protected updateSkinnedAABB() {
         const aabb = this._getSkinnedAABBFromPrimitives();
 
         if (aabb) {
@@ -106,12 +121,14 @@ export class Mesh {
         }
     }
 
-    private _getSkinnedAABBFromPrimitives() {
+    protected _getSkinnedAABBFromPrimitives() {
         if (!this.skeleton) {
             return null;
         }
 
         const skinningMatrices = this.skeleton.getSkinningMatrices();
+
+        if (!skinningMatrices || skinningMatrices.length === 0) return null;
 
         const aabbMin = vec3.fromValues(Infinity, Infinity, Infinity);
         const aabbMax = vec3.fromValues(-Infinity, -Infinity, -Infinity);
@@ -164,7 +181,7 @@ export class Mesh {
         return new AABB(aabbMax, aabbMin);
     }
 
-    private createAABB() {
+    protected createAABB() {
         const skinnedAABB = this._getSkinnedAABBFromPrimitives();
 
         if (skinnedAABB) {

@@ -22,17 +22,17 @@ export interface MaterialConstructor {
 }
 
 export class MeshPrimitive {
-    private indices: Uint16Array;
-    private vertices: Float32Array;
-    private textureCoords: Float32Array;
-    private normals: Float32Array;
-    private weight: Float32Array;
-    private joints: Float32Array;
-    private tangents: Float32Array;
+    protected indices: Uint16Array;
+    protected vertices: Float32Array;
+    protected textureCoords: Float32Array;
+    protected normals: Float32Array;
+    protected weight: Float32Array;
+    protected joints: Float32Array;
+    protected tangents: Float32Array;
 
-    private material: Material;
+    protected material: Material;
 
-    private aabb: AABB;
+    protected aabb: AABB;
 
     constructor(
         {
@@ -69,7 +69,7 @@ export class MeshPrimitive {
         this.aabb = new AABB(vertices.max as vec3, vertices.min as vec3);
     }
 
-    private generateDataForVertexLength(
+    protected generateDataForVertexLength(
         vertices: number[],
         newLengthPerElement = 4
     ) {
@@ -84,7 +84,7 @@ export class MeshPrimitive {
         return result;
     }
 
-    private computeTangent(
+    protected computeTangent(
         v0: vec3,
         v1: vec3,
         v2: vec3,
@@ -113,7 +113,7 @@ export class MeshPrimitive {
         return tangent;
     }
 
-    private calculateTangentsNormalTexture() {
+    protected calculateTangentsNormalTexture() {
         if (!this.material.getNormalTexture()) {
             this.tangents = new Float32Array(this.vertices.length);
 
@@ -153,6 +153,27 @@ export class MeshPrimitive {
         }
 
         this.tangents = result;
+    }
+
+    public copy() {
+        const { max, min } = this.aabb.getMaxMin();
+
+        return new MeshPrimitive(
+            {
+                indices: [...this.indices],
+                normals: [...this.normals],
+                textureCoords: [...this.textureCoords],
+                joints: [...this.joints],
+                tangents: [...this.tangents],
+                weight: [...this.weight],
+                vertices: {
+                    data: [...this.vertices],
+                    max: [...max],
+                    min: [...min],
+                },
+            },
+            this.material.copy()
+        );
     }
 
     public getTangents() {

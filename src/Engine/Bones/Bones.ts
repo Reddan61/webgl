@@ -12,7 +12,9 @@ export class Bone {
     private mesh: Mesh | null = null;
     private skin: number | null = null;
     private children: Bone[];
+    private childrenIndexes: number[];
     private parent: Bone | null = null;
+    private selfIndex: number;
 
     private rotation: quat;
     private scale: vec3;
@@ -24,17 +26,26 @@ export class Bone {
 
     private updateSubscribers: UpdateSubscriberCb[] = [];
 
-    constructor(bone: GLTFNode, parent: Bone | null, mesh: Mesh | null) {
+    constructor(
+        bone: GLTFNode,
+        selfIndex: number,
+        parent: Bone | null,
+        mesh: Mesh | null
+    ) {
         const {
             rotation = [0, 0, 0, 1],
             scale = [1, 1, 1],
             translation = [0, 0, 0],
             matrix = mat4.create(),
+            skin = null,
+            children = [],
         } = bone;
         this.mesh = mesh;
-        this.skin = bone.skin ?? null;
+        this.skin = skin;
         this.children = [];
+        this.childrenIndexes = children;
         this.parent = parent;
+        this.selfIndex = selfIndex;
 
         this.rotation = rotation;
         this.scale = scale;
@@ -49,6 +60,22 @@ export class Bone {
         this.calculateMatrix();
     }
 
+    public copy() {
+        return new Bone(
+            {
+                rotation: quat.copy(quat.create(), this.rotation),
+                scale: vec3.copy(vec3.create(), this.scale),
+                translation: vec3.copy(vec3.create(), this.translation),
+                matrix: mat4.copy(mat4.create(), this.initMatrix),
+                skin: this.skin ?? undefined,
+                children: [...this.childrenIndexes],
+            },
+            this.selfIndex,
+            null,
+            null
+        );
+    }
+
     public default() {
         this.setTRS(
             this.defaultTranslation,
@@ -57,6 +84,16 @@ export class Bone {
         );
 
         this.children.forEach((child) => child.default());
+    }
+
+    public getSelfIndex() {
+        return this.selfIndex;
+    }
+
+    public setParent(parent: Bone | null) {
+        this.parent = parent;
+
+        this.calculateWorldMatrix();
     }
 
     public getWorldMatrix() {
@@ -75,8 +112,17 @@ export class Bone {
         return this.mesh;
     }
 
+    public setMesh(mesh: Mesh | null) {
+        this.mesh = mesh;
+        this.calculateWorldMatrix();
+    }
+
     public getChildren() {
         return this.children;
+    }
+
+    public getChildrenIndexes() {
+        return this.childrenIndexes;
     }
 
     public setChildren(children: Bone[]) {

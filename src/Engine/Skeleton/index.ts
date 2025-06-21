@@ -30,6 +30,21 @@ export class Skeleton {
         this.subscribe();
     }
 
+    public setBones(bones: Bone[]) {
+        this.bones = bones;
+
+        this.calculateBones();
+        this.subscribe();
+    }
+
+    public copy(bones: Bone[]) {
+        return new Skeleton(
+            bones,
+            [...this.bonesIndexes],
+            [...this.inverseBindMatrices]
+        );
+    }
+
     public getSkinningMatrices() {
         return this.skinningMatrices;
     }
@@ -70,6 +85,8 @@ export class Skeleton {
     }
 
     private subscribe() {
+        if (this.bones.length === 0) return;
+
         this.bonesIndexes.forEach((index) =>
             this.bones[index].addUpdateSubscriber(() => {
                 this.someBoneChanged = true;
@@ -80,7 +97,7 @@ export class Skeleton {
     private calculateBones() {
         const numBones = this.getBonesCount();
 
-        if (numBones === 0) {
+        if (numBones === 0 || this.bones.length === 0) {
             return;
         }
 

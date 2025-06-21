@@ -45,6 +45,15 @@ export class BoneAnimation {
         this.name = name;
     }
 
+    public copy(bones: Bone[]) {
+        return new BoneAnimation(
+            bones,
+            this.samplers,
+            this.channels,
+            this.name
+        );
+    }
+
     public getName() {
         return this.name;
     }

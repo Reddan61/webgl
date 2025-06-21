@@ -1,35 +1,39 @@
-import { mat3, mat4, vec3 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 import { Mesh } from "engine/Mesh";
 import { AABB } from "engine/AABB";
 import { Transform } from "engine/Transform/Transform";
 import { BoneAnimation } from "engine/Animation/BoneAnimation";
 import { unsubArr } from "engine/Utils/Utils";
+import { Bone } from "engine/Bones/Bones";
 
 type OnNameUpdateCb = (name: string) => void;
 
 export class EngineObject {
-    private meshes: Mesh[];
-    private singleFace = false;
-    private flipYTexture = true;
-    private aabb: AABB;
-    private name = "DefaultObjectName";
+    protected bones: Bone[];
+    protected meshes: Mesh[];
+    protected singleFace = false;
+    protected flipYTexture = true;
+    protected aabb: AABB;
+    protected name = "DefaultObjectName";
 
-    private transform: Transform;
+    protected transform: Transform;
 
-    private animations: BoneAnimation[] = [];
-    private selectedAnimation: BoneAnimation | null = null;
+    protected animations: BoneAnimation[] = [];
+    protected selectedAnimation: BoneAnimation | null = null;
 
-    private onNameUpdateSubscribers: OnNameUpdateCb[] = [];
+    protected onNameUpdateSubscribers: OnNameUpdateCb[] = [];
 
-    private needToUpdateAABB = false;
+    protected needToUpdateAABB = false;
 
     constructor(
         meshes: Mesh[],
         position: vec3,
         scaling: vec3,
+        bones: Bone[] = [],
         animations: BoneAnimation[] = []
     ) {
         this.meshes = meshes;
+        this.bones = bones;
         this.animations = animations;
 
         this.transform = new Transform();
@@ -118,7 +122,72 @@ export class EngineObject {
         return this.transform;
     }
 
-    private createAABB() {
+    // TODO: refactor skeleton
+    public copy() {
+        const copiedMeshes = this.meshes.map((mesh) => mesh.copy([]));
+        const copiedBones: Bone[] = [];
+        this.copyBones(copiedBones, copiedMeshes, this.bones[0], null);
+
+        copiedMeshes.forEach((mesh) =>
+            mesh.getSkeleton()?.setBones(copiedBones)
+        );
+
+        const transform = this.getTransform();
+
+        const copiedAnimations = this.animations.map((animation) =>
+            animation.copy(copiedBones)
+        );
+
+        return new EngineObject(
+            copiedMeshes,
+            vec3.copy(vec3.create(), transform.getPosition()),
+            vec3.copy(vec3.create(), transform.getScaling()),
+            copiedBones,
+            copiedAnimations
+        );
+    }
+
+    private copyBones(
+        result: Bone[],
+        copiedMeshes: Mesh[],
+        currentBone: Bone,
+        parentIndex: number | null
+    ) {
+        const childrenIndexes = currentBone.getChildrenIndexes();
+
+        const copiedSelf = currentBone.copy();
+        const selfIndex = copiedSelf.getSelfIndex();
+        result[selfIndex] = copiedSelf;
+
+        if (parentIndex !== null) {
+            copiedSelf.setParent(result[parentIndex]);
+        }
+
+        const selfMesh = currentBone.getMesh();
+
+        if (selfMesh) {
+            const meshIndex = this.meshes.findIndex(
+                (mesh) => mesh === selfMesh
+            );
+
+            if (meshIndex >= 0) {
+                copiedSelf.setMesh(copiedMeshes[meshIndex]);
+            }
+        }
+
+        for (let i = 0; i < childrenIndexes.length; i++) {
+            const childIndex = childrenIndexes[i];
+            const child = this.bones[childIndex];
+
+            this.copyBones(result, copiedMeshes, child, selfIndex);
+
+            copiedSelf.setChildren(
+                childrenIndexes.map((child) => result[child])
+            );
+        }
+    }
+
+    protected createAABB() {
         let max = vec3.fromValues(-Infinity, -Infinity, -Infinity);
         let min = vec3.fromValues(Infinity, Infinity, Infinity);
 

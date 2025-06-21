@@ -8,14 +8,14 @@ export enum MATERIAL_ALPHA_MODE {
 }
 
 export class Material {
-    private color: vec4;
-    private baseImage: HTMLImageElement | null = null;
-    private normalImage: HTMLImageElement | null = null;
-    private isFlipTexture = false;
-    private baseTexture: ImageTexture | null = null;
-    private normalTexture: ImageTexture | null = null;
-    private alphaMode = MATERIAL_ALPHA_MODE.OPAQUE;
-    private alphaCutoff = 0.5;
+    protected color: vec4;
+    protected baseImage: HTMLImageElement | null = null;
+    protected normalImage: HTMLImageElement | null = null;
+    protected isFlipTexture = false;
+    protected baseTexture: ImageTexture | null = null;
+    protected normalTexture: ImageTexture | null = null;
+    protected alphaMode = MATERIAL_ALPHA_MODE.OPAQUE;
+    protected alphaCutoff = 0.5;
 
     constructor({
         color = [1, 1, 1, 1],
@@ -38,6 +38,17 @@ export class Material {
         this.alphaCutoff = alphaCutoff;
         this.normalImage = normalImage;
         this.isFlipTexture = isFlipTexture;
+    }
+
+    public copy() {
+        return new Material({
+            alphaCutoff: this.alphaCutoff,
+            alphaMode: this.alphaMode,
+            baseImage: this.baseImage,
+            color: this.color,
+            isFlipTexture: this.isFlipTexture,
+            normalImage: this.normalImage,
+        });
     }
 
     public getAlphaMode() {
@@ -83,7 +94,7 @@ export class Material {
         return this.color;
     }
 
-    private createTexture(webgl: WebGL2RenderingContext) {
+    protected createTexture(webgl: WebGL2RenderingContext) {
         if (this.baseImage) {
             this.baseTexture = new ImageTexture(
                 webgl,

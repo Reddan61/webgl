@@ -330,6 +330,7 @@ const parseNode = (
 
     const bone = new Bone(
         node,
+        index,
         parent,
         node.mesh !== undefined ? meshes[node.mesh] : null
     );
@@ -400,6 +401,7 @@ export const parseGLTF = async (gltf: GLTF): Promise<EngineObject> => {
         meshes,
         [0, 0, 0],
         [1, 1, 1],
+        bones,
         bonesAnimations
     );
 

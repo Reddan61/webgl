@@ -75,11 +75,17 @@ export const createSimpleScene = async () => {
     wizard.setFlipYTexture(false);
     wizard.setName("wizard");
 
+    const wizard2 = wizard.copy();
+    wizard2.getTransform().setPosition([20, 0, -20]);
+
     const shiba = await loadGLTF(shibaURL);
     shiba.setFlipYTexture(false);
     shiba.getTransform().setPosition([0, 10, -21]);
     shiba.getTransform().setScaling([5, 5, 5]);
     shiba.setName("shiba");
+
+    const shiba2 = shiba.copy();
+    shiba2.getTransform().setPosition([-5, 10, -21]);
 
     const duck = await loadGLTF(duckURL);
     duck.getTransform().setPosition([0, 0, -100]);
@@ -99,6 +105,9 @@ export const createSimpleScene = async () => {
     elephant.getTransform().getRotation().rotate(0, -90);
     elephant.setFlipYTexture(false);
     elephant.setName("elephant");
+
+    const elephant2 = elephant.copy();
+    elephant2.getTransform().setPosition([-20, -10, -20]);
 
     const camera = new Camera(cameraPosition);
     const directionalLight = new DirectionalLight(
@@ -126,12 +135,14 @@ export const createSimpleScene = async () => {
 
     scene.addPointLight(pointLight1);
     scene.addPointLight(pointLight2);
-
     scene.addObject(duck);
     scene.addObject(shiba);
+    scene.addObject(shiba2);
     scene.addObject(building);
     scene.addObject(wizard);
+    scene.addObject(wizard2);
     scene.addObject(elephant);
+    scene.addObject(elephant2);
     scene.addObject(pointLightObject1);
     scene.addObject(pointLightObject2);
 

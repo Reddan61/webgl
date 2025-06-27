@@ -83,11 +83,16 @@ export class ShadowMapProgram extends Program {
         this.bind();
 
         scene.getObjects().forEach((object) => {
+            const skeleton = object.getSkeleton();
+
             object.getMeshes().forEach((mesh) => {
                 if (mesh.getLight()) return null;
 
-                const skeleton = mesh.getSkeleton();
-                const boneMatrices = skeleton?.getSkinningMatrices();
+                const skinIndex = mesh.getSkinIndex();
+                const skin = skeleton?.getSkinByIndex(skinIndex);
+
+                const boneMatrices = skin?.getSkinningMatrices();
+
                 const useBones = !!boneMatrices;
 
                 const meshTransform = mesh.getTransform();
@@ -104,9 +109,8 @@ export class ShadowMapProgram extends Program {
                         weights: prim.getWeights(),
                         vertices: prim.getVertices(),
                         directionalLight: scene.getDirectionalLight(),
-                        bonesDataTexture:
-                            skeleton?.getBonesDataTexture() ?? null,
-                        bonesCount: skeleton?.getBonesCount() ?? 0,
+                        bonesDataTexture: skin?.getBonesDataTexture() ?? null,
+                        bonesCount: skin?.getJointsCount() ?? 0,
                     });
 
                     this.webgl.drawElements(

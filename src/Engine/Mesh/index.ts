@@ -1,21 +1,21 @@
 import { vec3 } from "gl-matrix";
 import { AABB } from "engine/AABB";
-import { Skeleton } from "engine/Skeleton";
 import { unsubArr } from "engine/Utils/Utils";
 import { MeshPrimitive } from "engine/MeshPrimitive";
 import { PointLight } from "engine/Light/PointLight";
 import { Transform } from "engine/Transform/Transform";
-import { Bone } from "engine/Bones/Bones";
+import { Skin } from "engine/Skin";
 
 type UpdateAABBSubscriberCb = (mesh: Mesh) => void;
 
 export class Mesh {
+    protected skinIndex: number | null = null;
+
     protected webgl: WebGL2RenderingContext | null = null;
 
     protected aabb: AABB;
 
     protected primitives: MeshPrimitive[] = [];
-    protected skeleton: Skeleton | null = null;
 
     protected light: PointLight | null = null;
 
@@ -23,17 +23,16 @@ export class Mesh {
 
     protected updateAABBSubscribers: UpdateAABBSubscriberCb[] = [];
 
-    constructor(primitives: MeshPrimitive[], skeleton: Skeleton | null = null) {
-        this.skeleton = skeleton;
+    constructor(primitives: MeshPrimitive[]) {
         this.primitives = primitives;
 
         this.transform = new Transform();
 
-        this.createAABB();
-        this.updateAABB();
+        this.createAABB(null);
+        this.updateAABB(null);
 
         this.transform.subscribe(() => {
-            this.updateAABB();
+            this.updateAABB(null);
             this.light?.setPosition(this.transform.getGlobalPosition());
         });
     }
@@ -41,11 +40,12 @@ export class Mesh {
     public _setWebGl(webgl: WebGL2RenderingContext) {
         this.webgl = webgl;
         this.primitives.forEach((prim) => prim._setWebGl(webgl));
-        this.skeleton?._setWebGl(webgl);
     }
 
-    public update() {
-        this.skeleton?.update();
+    public update() {}
+
+    public setSkin(skinIndex: Mesh["skinIndex"]) {
+        this.skinIndex = skinIndex;
     }
 
     public addUpdateAABBSubscriber(cb: UpdateAABBSubscriberCb) {
@@ -70,41 +70,28 @@ export class Mesh {
         return this.aabb;
     }
 
-    public getSkeleton() {
-        return this.skeleton;
-    }
-
-    public setSkeleton(skeleton: Skeleton | null) {
-        this.skeleton = skeleton;
-        this.skeleton?.__setMesh(this);
-
-        this.createAABB();
-        this.updateAABB();
+    public getSkinIndex() {
+        return this.skinIndex;
     }
 
     public getTransform() {
         return this.transform;
     }
 
-    public updateAABB() {
-        if (this.skeleton) {
-            this.updateSkinnedAABB();
-        }
+    public updateAABB(skin: Skin | null) {
+        this.updateSkinnedAABB(skin);
 
         this.aabb.updateByModelMatrix(this.transform.getGlobalModelMatrix());
         this.publishUpdateAABB();
     }
 
-    public copy(bones: Bone[]) {
+    public copy() {
         const copiedPrimitives = this.primitives.map((primitive) =>
             primitive.copy()
         );
 
         const self = new Mesh(copiedPrimitives);
-
-        const copiedSkeleton = this.skeleton?.copy(bones) ?? null;
-
-        self.setSkeleton(copiedSkeleton);
+        self.setSkin(this.skinIndex);
 
         return self;
     }
@@ -113,20 +100,20 @@ export class Mesh {
         this.updateAABBSubscribers.forEach((cb) => cb(this));
     }
 
-    protected updateSkinnedAABB() {
-        const aabb = this._getSkinnedAABBFromPrimitives();
+    protected updateSkinnedAABB(skin: Skin | null) {
+        const aabb = this._getSkinnedAABBFromPrimitives(skin);
 
         if (aabb) {
             this.aabb = aabb;
         }
     }
 
-    protected _getSkinnedAABBFromPrimitives() {
-        if (!this.skeleton) {
+    protected _getSkinnedAABBFromPrimitives(skin: Skin | null) {
+        if (!skin) {
             return null;
         }
 
-        const skinningMatrices = this.skeleton.getSkinningMatrices();
+        const skinningMatrices = skin.getSkinningMatrices();
 
         if (!skinningMatrices || skinningMatrices.length === 0) return null;
 
@@ -181,8 +168,8 @@ export class Mesh {
         return new AABB(aabbMax, aabbMin);
     }
 
-    protected createAABB() {
-        const skinnedAABB = this._getSkinnedAABBFromPrimitives();
+    protected createAABB(skin: Skin | null) {
+        const skinnedAABB = this._getSkinnedAABBFromPrimitives(skin);
 
         if (skinnedAABB) {
             this.aabb = skinnedAABB;

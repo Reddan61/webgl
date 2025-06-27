@@ -1,81 +1,58 @@
-import { mat4 } from "gl-matrix";
 import { Mesh } from "engine/Mesh";
 import { Bone } from "engine/Bones/Bones";
 import { unsubArr } from "engine/Utils/Utils";
-import { DataTexture } from "engine/Programs/Texture/DataTexture";
+import { Skin } from "engine/Skin";
 
 type UpdateSubscriberCb = () => void;
 
 export class Skeleton {
-    private someBoneChanged = false;
-
     private bones: Bone[];
-    private mesh: Mesh | null;
-    private bonesIndexes: number[];
-    private inverseBindMatrices: number[];
-    private skinningMatrices: Float32Array;
-    private skeletonDataTexture: DataTexture | null = null;
+    private skins: Skin[];
 
     private updateSubscribers: UpdateSubscriberCb[] = [];
 
-    constructor(
-        bones: Bone[],
-        bonesIndexes: number[],
-        inverseBindMatrices: number[]
-    ) {
+    constructor(bones: Bone[], skins = [] as Skeleton["skins"]) {
         this.bones = bones;
-        this.bonesIndexes = bonesIndexes;
-        this.inverseBindMatrices = inverseBindMatrices;
-        this.calculateBones();
-        this.subscribe();
+        this.skins = skins;
     }
 
-    public setBones(bones: Bone[]) {
-        this.bones = bones;
-
-        this.calculateBones();
-        this.subscribe();
+    public getBones() {
+        return this.bones;
     }
 
-    public copy(bones: Bone[]) {
-        return new Skeleton(
-            bones,
-            [...this.bonesIndexes],
-            [...this.inverseBindMatrices]
-        );
+    public getSkins() {
+        return this.skins;
     }
 
-    public getSkinningMatrices() {
-        return this.skinningMatrices;
+    public getSkinByIndex(index: number | null) {
+        return index !== null ? (this.skins[index] ?? null) : null;
     }
 
-    public __setMesh(mesh: Mesh) {
-        this.mesh = mesh;
-        this.calculateBones();
+    public update(meshes: Mesh[]) {
+        this.bones[0].update(this.bones, meshes);
+        this.calculateSkins(meshes);
     }
 
-    public update() {
-        if (this.someBoneChanged) {
-            this.calculateBones();
-            this.someBoneChanged = false;
+    public default() {
+        for (let i = 0; i < this.bones.length; i++) {
+            this.bones[i].default();
+            this.updateBone(this.bones[i]);
         }
     }
 
+    public copy() {
+        const copiedBones = this.bones.map((bone) => bone.copy());
+        const copiedSkins = this.skins.map((skin) => skin.copy());
+
+        return new Skeleton(copiedBones, copiedSkins);
+    }
+
+    public updateBone(bone: Bone) {
+        bone.calculateLocal();
+    }
+
     public _setWebGl(webgl: WebGL2RenderingContext) {
-        this.skeletonDataTexture = new DataTexture(webgl);
-        this.skeletonDataTexture?.update(
-            this.skinningMatrices,
-            4,
-            this.getBonesCount()
-        );
-    }
-
-    public getBonesDataTexture() {
-        return this.skeletonDataTexture;
-    }
-
-    public getBonesCount() {
-        return this.bonesIndexes.length;
+        this.skins.forEach((skin) => skin._setWebGl(webgl));
     }
 
     public addUpdateSubscriber(cb: UpdateSubscriberCb) {
@@ -84,61 +61,15 @@ export class Skeleton {
         return unsubArr(this.updateSubscribers, (el) => el === cb);
     }
 
-    private subscribe() {
-        if (this.bones.length === 0) return;
+    protected calculateSkins(meshes: Mesh[]) {
+        meshes.forEach((mesh) => {
+            const skinIndex = mesh.getSkinIndex();
+            const skin = this.getSkinByIndex(skinIndex);
 
-        this.bonesIndexes.forEach((index) =>
-            this.bones[index].addUpdateSubscriber(() => {
-                this.someBoneChanged = true;
-            })
-        );
-    }
-
-    private calculateBones() {
-        const numBones = this.getBonesCount();
-
-        if (numBones === 0 || this.bones.length === 0) {
-            return;
-        }
-
-        let meshWorldInverse = mat4.create();
-
-        if (this.mesh) {
-            const meshWorldMatrix = this.mesh
-                .getTransform()
-                .getLocalModelMatrix();
-            mat4.invert(meshWorldInverse, meshWorldMatrix);
-        }
-
-        const skinningMatrices: Float32Array = new Float32Array(16 * numBones);
-
-        for (let i = 0; i < numBones; i++) {
-            const bone = this.bones[this.bonesIndexes[i]];
-            const start = i * 16;
-            const end = start + 16;
-
-            const inverseBindMatrix = new Float32Array(
-                this.inverseBindMatrices.slice(start, end)
-            );
-
-            const skinningMatrix = mat4.create();
-
-            const boneWorld = bone.getWorldMatrix();
-            const localBoneMatrix = mat4.multiply(
-                mat4.create(),
-                meshWorldInverse,
-                boneWorld
-            );
-            mat4.multiply(skinningMatrix, localBoneMatrix, inverseBindMatrix);
-
-            skinningMatrices.set(skinningMatrix, start);
-        }
-
-        this.skinningMatrices = skinningMatrices;
-
-        // 1 matrice row = 1 texel (RGBA = vec4)
-        this.skeletonDataTexture?.update(skinningMatrices, 4, numBones);
-
-        this.mesh?.updateAABB();
+            if (skin) {
+                skin.update(this.bones, mesh);
+                mesh.updateAABB(skin);
+            }
+        });
     }
 }

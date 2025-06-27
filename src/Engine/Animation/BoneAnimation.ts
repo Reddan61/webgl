@@ -1,6 +1,7 @@
 import { vec3, vec4 } from "gl-matrix";
-import { Bone } from "../Bones/Bones";
 import { ANIMATION_INTERPOLATION, ANIMATION_PATH } from "../Utils/GLTF/types";
+import { Skeleton } from "engine/Skeleton";
+import { unsubArr } from "engine/Utils/Utils";
 
 export interface AnimationSampler {
     input: {
@@ -24,8 +25,9 @@ export interface AnimationChannel {
     };
 }
 
+type OnStopListener = () => void;
+
 export class BoneAnimation {
-    private bones: Bone[] = [];
     private samplers: AnimationSampler[] = [];
     private channels: AnimationChannel[] = [];
     private name: string;
@@ -33,25 +35,20 @@ export class BoneAnimation {
     private pauseTime = 0;
     private isPlaying = false;
 
+    private onStopListeners = [] as OnStopListener[];
+
     constructor(
-        bones: Bone[],
         samplers: AnimationSampler[],
         channels: AnimationChannel[],
         name = "DEFAULT_ANIMATION_NAME"
     ) {
-        this.bones = bones;
         this.samplers = samplers;
         this.channels = channels;
         this.name = name;
     }
 
-    public copy(bones: Bone[]) {
-        return new BoneAnimation(
-            bones,
-            this.samplers,
-            this.channels,
-            this.name
-        );
+    public copy() {
+        return new BoneAnimation(this.samplers, this.channels, this.name);
     }
 
     public getName() {
@@ -74,17 +71,24 @@ export class BoneAnimation {
         this.pauseTime = performance.now() / 1000;
     }
 
+    public onStopSubscribe(cb: OnStopListener) {
+        this.onStopListeners.push(cb);
+
+        return unsubArr(this.onStopListeners, (cur) => cur === cb);
+    }
+
     public stop() {
         this.isPlaying = false;
         this.animationStartTime = 0;
         this.pauseTime = 0;
 
-        this.bones[0]?.default();
-        this.bones[0]?.update();
+        this.onStopPublish();
     }
 
-    public update() {
-        if (!this.isPlaying || !this.bones.length) return;
+    public update(skeleton: Skeleton) {
+        const bones = skeleton.getBones();
+
+        if (!this.isPlaying || !bones.length) return;
 
         const now = performance.now() / 1000;
         const currentTime = now - this.animationStartTime;
@@ -119,7 +123,7 @@ export class BoneAnimation {
             const interpolationValue =
                 (animationTime - previousTime) / (nextTime - previousTime);
 
-            const bone = this.bones[boneIndex];
+            const bone = bones[boneIndex];
             let newTranslation = null as vec3 | null;
             let newScale = null as vec3 | null;
             let newRotation = null as vec4 | null;
@@ -205,8 +209,12 @@ export class BoneAnimation {
             );
 
             if (isUpdated) {
-                bone.update();
+                skeleton.updateBone(bone);
             }
         }
+    }
+
+    protected onStopPublish() {
+        this.onStopListeners.forEach((cb) => cb());
     }
 }

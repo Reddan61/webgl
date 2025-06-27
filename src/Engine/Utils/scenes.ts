@@ -77,6 +77,8 @@ export const createSimpleScene = async () => {
 
     const wizard2 = wizard.copy();
     wizard2.getTransform().setPosition([20, 0, -20]);
+    wizard2.getTransform().setScaling([15, 15, 15]);
+    wizard2.getTransform().getRotation().rotate(0, -90);
 
     const shiba = await loadGLTF(shibaURL);
     shiba.setFlipYTexture(false);
@@ -85,7 +87,7 @@ export const createSimpleScene = async () => {
     shiba.setName("shiba");
 
     const shiba2 = shiba.copy();
-    shiba2.getTransform().setPosition([-5, 10, -21]);
+    shiba2.getTransform().setPosition([-10, 10, -21]);
 
     const duck = await loadGLTF(duckURL);
     duck.getTransform().setPosition([0, 0, -100]);
@@ -99,6 +101,11 @@ export const createSimpleScene = async () => {
     building.setFlipYTexture(false);
     building.setName("building");
 
+    const building2 = building.copy();
+    building2.getTransform().setPosition([-90, 0, -7]);
+    building2.getTransform().getRotation().rotate(0, 90);
+    building2.getTransform().setScaling(vec3.fromValues(0.01, 0.01, 0.01));
+
     const elephant = await loadGLTF(elephantURL);
     elephant.getTransform().setPosition([0, -10, -20]);
     elephant.getTransform().setScaling([0.15, 0.15, 0.15]);
@@ -107,7 +114,7 @@ export const createSimpleScene = async () => {
     elephant.setName("elephant");
 
     const elephant2 = elephant.copy();
-    elephant2.getTransform().setPosition([-20, -10, -20]);
+    elephant2.getTransform().setPosition([-25, -10, -20]);
 
     const camera = new Camera(cameraPosition);
     const directionalLight = new DirectionalLight(
@@ -132,13 +139,15 @@ export const createSimpleScene = async () => {
     const pointLightObject2 = createPointLight(pointLight2);
 
     const scene = new Scene(camera, directionalLight, ambientLight);
-
+    console.log(wizard);
+    console.log(wizard2);
     scene.addPointLight(pointLight1);
     scene.addPointLight(pointLight2);
     scene.addObject(duck);
     scene.addObject(shiba);
     scene.addObject(shiba2);
     scene.addObject(building);
+    scene.addObject(building2);
     scene.addObject(wizard);
     scene.addObject(wizard2);
     scene.addObject(elephant);

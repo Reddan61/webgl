@@ -76,10 +76,14 @@ export class TriangleProgram extends Program {
             this.enableCullFace();
         }
 
+        const skeleton = object.getSkeleton();
+
         object.getMeshes().forEach((mesh) => {
             const primitives = mesh.getPrimitives();
-            const skeleton = mesh.getSkeleton();
-            const boneMatrices = skeleton?.getSkinningMatrices();
+            const skinIndex = mesh.getSkinIndex();
+            const skin = skeleton?.getSkinByIndex(skinIndex);
+
+            const boneMatrices = skin?.getSkinningMatrices();
             const useBones = !!boneMatrices;
 
             const meshTransform = mesh.getTransform();
@@ -96,8 +100,8 @@ export class TriangleProgram extends Program {
                     useBones,
                     scene,
                     globalTransformationMatrix,
-                    bonesDataTexture: skeleton?.getBonesDataTexture() ?? null,
-                    bonesCount: skeleton?.getBonesCount() ?? 0,
+                    bonesDataTexture: skin?.getBonesDataTexture() ?? null,
+                    bonesCount: skin?.getJointsCount() ?? 0,
 
                     colorFactor: material.getColor(),
                     objectTexture: material.getBaseTexture(),

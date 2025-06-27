@@ -1,7 +1,7 @@
 import { mat4, quat, vec3, vec4 } from "gl-matrix";
-import { Mesh } from "engine/Mesh";
 import { unsubArr } from "engine/Utils/Utils";
 import { GLTFNode } from "engine/Utils/GLTF/types";
+import { Mesh } from "engine/Mesh";
 
 type UpdateSubscriberCb = (bone: Bone) => void;
 
@@ -9,12 +9,11 @@ export class Bone {
     private localMatrix: mat4;
     private worldMatrix: mat4;
     private initMatrix: mat4;
-    private mesh: Mesh | null = null;
     private skin: number | null = null;
-    private children: Bone[];
-    private childrenIndexes: number[];
-    private parent: Bone | null = null;
     private selfIndex: number;
+    private childrenIndexes: number[];
+    private meshIndex: number | null = null;
+    private parentIndex: number | null = null;
 
     private rotation: quat;
     private scale: vec3;
@@ -29,8 +28,7 @@ export class Bone {
     constructor(
         bone: GLTFNode,
         selfIndex: number,
-        parent: Bone | null,
-        mesh: Mesh | null
+        parentIndex = null as number | null
     ) {
         const {
             rotation = [0, 0, 0, 1],
@@ -39,12 +37,13 @@ export class Bone {
             matrix = mat4.create(),
             skin = null,
             children = [],
+            mesh = null,
         } = bone;
-        this.mesh = mesh;
+
         this.skin = skin;
-        this.children = [];
         this.childrenIndexes = children;
-        this.parent = parent;
+        this.parentIndex = parentIndex;
+        this.meshIndex = mesh;
         this.selfIndex = selfIndex;
 
         this.rotation = rotation;
@@ -57,7 +56,7 @@ export class Bone {
         this.defaultTranslation = translation;
 
         this.worldMatrix = mat4.create();
-        this.calculateMatrix();
+        this.calculateLocal();
     }
 
     public copy() {
@@ -69,10 +68,10 @@ export class Bone {
                 matrix: mat4.copy(mat4.create(), this.initMatrix),
                 skin: this.skin ?? undefined,
                 children: [...this.childrenIndexes],
+                mesh: this.meshIndex ?? undefined,
             },
             this.selfIndex,
-            null,
-            null
+            this.parentIndex
         );
     }
 
@@ -82,18 +81,14 @@ export class Bone {
             this.defaultRotation,
             this.defaultScale
         );
+    }
 
-        this.children.forEach((child) => child.default());
+    public getMeshIndex() {
+        return this.meshIndex;
     }
 
     public getSelfIndex() {
         return this.selfIndex;
-    }
-
-    public setParent(parent: Bone | null) {
-        this.parent = parent;
-
-        this.calculateWorldMatrix();
     }
 
     public getWorldMatrix() {
@@ -108,25 +103,8 @@ export class Bone {
         return this.skin;
     }
 
-    public getMesh() {
-        return this.mesh;
-    }
-
-    public setMesh(mesh: Mesh | null) {
-        this.mesh = mesh;
-        this.calculateWorldMatrix();
-    }
-
-    public getChildren() {
-        return this.children;
-    }
-
     public getChildrenIndexes() {
         return this.childrenIndexes;
-    }
-
-    public setChildren(children: Bone[]) {
-        this.children = children;
     }
 
     public setTranslation(translation: vec3) {
@@ -149,29 +127,26 @@ export class Bone {
         this.scale = scale;
     }
 
-    public update() {
-        this.calculateMatrix();
-        this.publishUpdate();
-
-        this.children.forEach((child) => child.update());
-    }
-
     public addUpdateSubscriber(cb: UpdateSubscriberCb) {
         this.updateSubscribers.push(cb);
 
         return unsubArr(this.updateSubscribers, (el) => el === cb);
     }
 
-    private publishUpdate() {
-        this.updateSubscribers.forEach((cb) => cb(this));
+    public update(bones: Bone[], meshes: Mesh[]) {
+        const parent =
+            this.parentIndex === null ? null : bones[this.parentIndex];
+
+        this.calculateWorldMatrix(parent, meshes);
+
+        for (let i = 0; i < this.childrenIndexes.length; i++) {
+            const childIndex = this.childrenIndexes[i];
+            const child = bones[childIndex];
+            child.update(bones, meshes);
+        }
     }
 
-    private calculateMatrix() {
-        this.calculateLocal();
-        this.calculateWorldMatrix();
-    }
-
-    private calculateLocal() {
+    public calculateLocal() {
         this.localMatrix = mat4.create();
         mat4.identity(this.localMatrix);
 
@@ -187,8 +162,8 @@ export class Bone {
         mat4.multiply(this.localMatrix, this.initMatrix, temp);
     }
 
-    private calculateWorldMatrix() {
-        const parentMatrix = this.parent?.getWorldMatrix() ?? null;
+    private calculateWorldMatrix(parent: Bone | null, meshes: Mesh[]) {
+        const parentMatrix = parent?.getWorldMatrix() ?? null;
 
         if (!parentMatrix) {
             mat4.copy(this.worldMatrix, this.localMatrix);
@@ -196,6 +171,10 @@ export class Bone {
             mat4.multiply(this.worldMatrix, parentMatrix, this.localMatrix);
         }
 
-        this.mesh?.getTransform().setModelMatrix(this.worldMatrix);
+        if (this.meshIndex !== null) {
+            meshes[this.meshIndex]
+                ?.getTransform()
+                .setModelMatrix(this.worldMatrix);
+        }
     }
 }

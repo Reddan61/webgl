@@ -18,6 +18,7 @@ import {
     AnimationSampler,
     BoneAnimation,
 } from "engine/Animation/BoneAnimation";
+import { Skin } from "engine/Skin";
 
 const TYPED_ARRAYS = {
     [COMPONENT_TYPE.BYTE]: Int8Array,
@@ -227,27 +228,35 @@ const parsePrimitives = (
 const parseSkins = (gltf: GLTF, nodes: Bone[], buffers: ArrayBuffer[]) => {
     const { skins } = gltf;
 
-    if (!skins) return null;
+    if (!skins) return [];
+
+    const resultSkins = [];
 
     for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
         const skinIndex = node.getSkin();
-        const mesh = node.getMesh();
+        const mesh = node.getMeshIndex();
 
         if (skinIndex !== null && mesh !== null) {
-            const { inverseBindMatrices, joints } = skins[skinIndex];
+            const {
+                inverseBindMatrices,
+                joints,
+                skeleton = joints[0],
+            } = skins[skinIndex];
 
             if (inverseBindMatrices !== undefined) {
-                const skeleton = new Skeleton(
-                    nodes,
+                const skin = new Skin(
+                    skeleton,
                     joints,
                     getAccessorData(gltf, buffers, inverseBindMatrices).data
                 );
 
-                mesh.setSkeleton(skeleton);
+                resultSkins.push(skin);
             }
         }
     }
+
+    return resultSkins;
 };
 
 const parseChannels = (channels: GLTFAnimationChannel[]) => {
@@ -275,7 +284,7 @@ const parseAnimations = (gltf: GLTF, buffers: ArrayBuffer[], bones: Bone[]) => {
         const channelsParsed = parseChannels(channels);
 
         bonesAnimations.push(
-            new BoneAnimation(bones, samplersParsed, channelsParsed, name)
+            new BoneAnimation(samplersParsed, channelsParsed, name)
         );
     }
 
@@ -317,33 +326,33 @@ const parseSamplers = (
     return result;
 };
 
+// TODO: мб сделать return bones[] и убрать result: Bone[]
 const parseNode = (
     gltf: GLTF,
     result: Bone[],
     meshes: Mesh[],
-    index: number,
+    currentIndex: number,
     parentIndex: number | null = null
 ) => {
     const { nodes } = gltf;
-    const node = nodes[index];
-    const parent = parentIndex !== null ? result[parentIndex] : null;
+    const node = nodes[currentIndex];
 
-    const bone = new Bone(
-        node,
-        index,
-        parent,
-        node.mesh !== undefined ? meshes[node.mesh] : null
-    );
-    result[index] = bone;
+    const bone = new Bone(node, currentIndex, parentIndex);
+    result[currentIndex] = bone;
+
+    const skinIndex = bone.getSkin();
+    const meshIndex = bone.getMeshIndex();
+
+    if (skinIndex !== null && meshIndex !== null) {
+        meshes[meshIndex].setSkin(skinIndex);
+    }
 
     const children = node.children ?? [];
 
     for (let i = 0; i < children.length; i++) {
         const child = children[i];
 
-        parseNode(gltf, result, meshes, child, index);
-
-        bone.setChildren(children.map((child) => result[child]));
+        parseNode(gltf, result, meshes, child, currentIndex);
     }
 };
 
@@ -385,8 +394,7 @@ export const parseGLTF = async (gltf: GLTF): Promise<EngineObject> => {
 
     const meshes = gltf.meshes.map((_, index) => {
         const mesh = new Mesh(
-            parsePrimitives(gltf, bufferData, textures, index),
-            null
+            parsePrimitives(gltf, bufferData, textures, index)
         );
 
         return mesh;
@@ -394,14 +402,16 @@ export const parseGLTF = async (gltf: GLTF): Promise<EngineObject> => {
 
     const { bones } = parseNodes(gltf, meshes);
 
-    parseSkins(gltf, bones, bufferData);
+    const skins = parseSkins(gltf, bones, bufferData);
+    const skeleton = new Skeleton(bones, skins);
+
     const bonesAnimations = parseAnimations(gltf, bufferData, bones) ?? [];
 
     const object = new EngineObject(
         meshes,
         [0, 0, 0],
         [1, 1, 1],
-        bones,
+        skeleton,
         bonesAnimations
     );
 

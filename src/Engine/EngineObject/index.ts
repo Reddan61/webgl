@@ -4,12 +4,12 @@ import { AABB } from "engine/AABB";
 import { Transform } from "engine/Transform/Transform";
 import { BoneAnimation } from "engine/Animation/BoneAnimation";
 import { unsubArr } from "engine/Utils/Utils";
-import { Bone } from "engine/Bones/Bones";
+import { Skeleton } from "engine/Skeleton";
 
 type OnNameUpdateCb = (name: string) => void;
 
 export class EngineObject {
-    protected bones: Bone[];
+    protected skeleton: Skeleton | null = null;
     protected meshes: Mesh[];
     protected singleFace = false;
     protected flipYTexture = true;
@@ -29,16 +29,20 @@ export class EngineObject {
         meshes: Mesh[],
         position: vec3,
         scaling: vec3,
-        bones: Bone[] = [],
+        skeleton: EngineObject["skeleton"] = null,
         animations: BoneAnimation[] = []
     ) {
         this.meshes = meshes;
-        this.bones = bones;
+        this.skeleton = skeleton;
         this.animations = animations;
+
+        this.skeleton?.update(this.meshes);
 
         this.transform = new Transform();
         this.transform.setPosition(position);
         this.transform.setScaling(scaling);
+
+        this.animationSubscribe();
 
         this.meshes.forEach((mesh) => {
             mesh.getTransform().setParentTransform(this.getTransform());
@@ -51,6 +55,8 @@ export class EngineObject {
     }
 
     public _setWebGl(webgl: WebGL2RenderingContext) {
+        this.skeleton?._setWebGl(webgl);
+
         this.meshes.forEach((mesh) => {
             mesh._setWebGl(webgl);
         });
@@ -96,7 +102,11 @@ export class EngineObject {
     }
 
     public update() {
-        this.selectedAnimation?.update();
+        if (this.skeleton) {
+            this.selectedAnimation?.update(this.skeleton);
+            this.skeleton.update(this.meshes);
+        }
+
         this.meshes.forEach((mesh) => mesh.update());
 
         if (this.needToUpdateAABB) {
@@ -122,69 +132,30 @@ export class EngineObject {
         return this.transform;
     }
 
-    // TODO: refactor skeleton
+    public getSkeleton() {
+        return this.skeleton;
+    }
+
     public copy() {
-        const copiedMeshes = this.meshes.map((mesh) => mesh.copy([]));
-        const copiedBones: Bone[] = [];
-        this.copyBones(copiedBones, copiedMeshes, this.bones[0], null);
-
-        copiedMeshes.forEach((mesh) =>
-            mesh.getSkeleton()?.setBones(copiedBones)
-        );
-
-        const transform = this.getTransform();
-
-        const copiedAnimations = this.animations.map((animation) =>
-            animation.copy(copiedBones)
-        );
+        const position = vec3.copy(vec3.create(), this.transform.getPosition());
+        const scaling = vec3.copy(vec3.create(), this.transform.getScaling());
+        const copiedMeshes = this.meshes.map((mesh) => mesh.copy());
+        const skeleton = this.skeleton?.copy();
+        const animations = this.animations.map((animation) => animation.copy());
 
         return new EngineObject(
             copiedMeshes,
-            vec3.copy(vec3.create(), transform.getPosition()),
-            vec3.copy(vec3.create(), transform.getScaling()),
-            copiedBones,
-            copiedAnimations
+            position,
+            scaling,
+            skeleton,
+            animations
         );
     }
 
-    private copyBones(
-        result: Bone[],
-        copiedMeshes: Mesh[],
-        currentBone: Bone,
-        parentIndex: number | null
-    ) {
-        const childrenIndexes = currentBone.getChildrenIndexes();
-
-        const copiedSelf = currentBone.copy();
-        const selfIndex = copiedSelf.getSelfIndex();
-        result[selfIndex] = copiedSelf;
-
-        if (parentIndex !== null) {
-            copiedSelf.setParent(result[parentIndex]);
-        }
-
-        const selfMesh = currentBone.getMesh();
-
-        if (selfMesh) {
-            const meshIndex = this.meshes.findIndex(
-                (mesh) => mesh === selfMesh
-            );
-
-            if (meshIndex >= 0) {
-                copiedSelf.setMesh(copiedMeshes[meshIndex]);
-            }
-        }
-
-        for (let i = 0; i < childrenIndexes.length; i++) {
-            const childIndex = childrenIndexes[i];
-            const child = this.bones[childIndex];
-
-            this.copyBones(result, copiedMeshes, child, selfIndex);
-
-            copiedSelf.setChildren(
-                childrenIndexes.map((child) => result[child])
-            );
-        }
+    protected animationSubscribe() {
+        this.animations.forEach((animation) => {
+            animation.onStopSubscribe(() => this.skeleton?.default());
+        });
     }
 
     protected createAABB() {
